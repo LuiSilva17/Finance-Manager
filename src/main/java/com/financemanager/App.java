@@ -27,13 +27,14 @@ public class App {
             int balanceAfterTransaction = Integer.parseInt(line[4]);
             int type = Integer.parseInt(line[5]);
 
+            Transacao transacao;
             if (line.length > 6) {
                 String payersName = line[6];
                 // String payersIBAN = line[7];
                 String beneficiarysName = line[8];
-                Transacao transacao = new Transacao(date, description, amount, type, payersName, beneficiarysName);
+                transacao = new Transacao(date, description, amount, type, payersName, beneficiarysName);
             } else {
-                Transacao transacao = new Transacao(date, description, balanceAfterTransaction, type);
+                transacao = new Transacao(date, description, balanceAfterTransaction, type);
             }
 
 

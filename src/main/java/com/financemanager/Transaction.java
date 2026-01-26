@@ -8,33 +8,47 @@ public class Transaction implements Serializable {
     private LocalDate date;
     private String description;
     private double value;
-    private int type; // Debit = 0; Credit = 1
+    private TransactionEnum type;
     private String payersName;
     private String beneficiarysName;
 
-    public Transaction(LocalDate date, String description, double value, int type) {
+    public Transaction(LocalDate date, String description, double value, TransactionEnum type) {
         this.date = date;
         this.description = description;
         this.value = value;
-        if(type != 0 || type != 1) {
-            System.err.println("Type cannot be different than 0 or 1");
-            System.err.println("For Debit  choose 0");
-            System.err.println("For Credit choose 1");
-        }
         this.type = type;
     }
 
-    public Transaction(LocalDate date, String description, double value, int type, String payersName, String beneficiarysName) {
+    public Transaction(LocalDate date, String description, double value, TransactionEnum type, String payersName, String beneficiarysName) {
         this.date = date;
         this.description = description;
         this.value = value;
-        if(type != 0 || type != 1) {
-            System.err.println("Type cannot be different than 0 or 1");
-            System.err.println("For Debit  choose 0");
-            System.err.println("For Credit choose 1");
-        }
         this.type = type;
         this.payersName = payersName;
         this.beneficiarysName = beneficiarysName;
+    }
+
+    public LocalDate getDate() {
+        return this.date;
+    }
+
+    public String getDescription() {
+        return this.description;
+    }
+
+    public double getValue() {
+        return this.value;
+    }
+
+    public TransactionEnum getType() {
+        return this.type;
+    }
+
+    public String getPayersName() {
+        return this.payersName;
+    }
+
+    public String getBeneficiarysName() {
+        return this.beneficiarysName;
     }
 }

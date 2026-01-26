@@ -1,13 +1,17 @@
 package com.financemanager.GUI;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 
 import com.financemanager.AccountManager;
 import com.financemanager.CSVImporter;
 import com.financemanager.Registry;
+import com.financemanager.Transaction;
 
 import java.awt.*;
-import java.io.File;
+import java.io.*;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 
 public class Menu {
 
@@ -15,9 +19,12 @@ public class Menu {
     private CardLayout cardLayout; // O gestor que troca as telas
     private JPanel painelPrincipal; // O "baralho" que segura as telas todas
     private Registry registry;
+    private AccountManager manager;
+
+    private JPanel buttonContainer;
 
     public Menu() {
-        this.registry = new Registry("finance_config.dat");
+        this.registry = new Registry();
         frame = new JFrame();
         frame.setTitle("Finance Manager");
         frame.setSize(800, 500);
@@ -70,7 +77,9 @@ public class Menu {
         btnExit.setPreferredSize(buttonSize);
 
         btnCreate.addActionListener(e -> cardLayout.show(painelPrincipal, "Create"));
-        btnLoad.addActionListener(e -> cardLayout.show(painelPrincipal, "Load"));
+        btnLoad.addActionListener(e -> {
+            refreshLoadPage();
+            cardLayout.show(painelPrincipal, "Load");});
         btnExit.addActionListener(e -> System.exit(0));
 
         painelBotoes.add(btnCreate);
@@ -154,7 +163,7 @@ public class Menu {
                 trimmedName = fileName;
             }
             
-            AccountManager newManager = CSVImporter.importTransactions(f, path);
+            AccountManager newManager = CSVImporter.importTransactions(f, trimmedName);
             registry.registerManager(trimmedName, path);
             
             cardLayout.show(painelPrincipal, "Dashboard");
@@ -200,6 +209,7 @@ public class Menu {
     private JPanel loadPanel() {
         JPanel painelGeral = new JPanel(new BorderLayout());
 
+        // 1. O Topo (Back Button) - IGUAL
         JPanel painelTopo = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JButton btnBack = new JButton("Back");
         btnBack.setFont(new Font("Arial", Font.BOLD, 14));
@@ -207,43 +217,49 @@ public class Menu {
         painelTopo.add(btnBack);
         painelGeral.add(painelTopo, BorderLayout.NORTH);
 
+        // 2. O Centro (Layout Proporcional) - IGUAL
         JPanel painelProporcional = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
 
-        // A Lista de Bancos
-        JPanel listaBancos = new JPanel(new GridLayout(0, 1, 0, 15)); 
-
-        // --- SIMULAÇÃO: Imagina que o código leu o config e encontrou estes 3 ---
-        String[] meusBancos = {"Crédito Agrícola", "Caixa Geral de Depósitos", "BPI"};
-
-        for (String nomeBanco : meusBancos) {
-            JButton btnBanco = new JButton(nomeBanco);
-            btnBanco.setFont(new Font("Arial", Font.BOLD, 18));
-            btnBanco.setPreferredSize(new Dimension(0, 60)); // Altura elegante
-            
-            btnBanco.addActionListener(e -> {
-                System.out.println("A carregar: " + nomeBanco); // Só para debug
-                cardLayout.show(painelPrincipal, "Dashboard");
-            });
-            
-            listaBancos.add(btnBanco);
-        }
-
+        // 3. A Lista de Bancos (AQUI MUDA)
+        // Inicializamos a variável global, mas deixamo-la VAZIA por agora
+        this.buttonContainer = new JPanel(new GridLayout(0, 1, 0, 15)); 
+        
+        // Configuração do Layout - IGUAL
         gbc.gridx = 0; gbc.weightx = 0.3;
         painelProporcional.add(Box.createGlue(), gbc);
 
         gbc.gridx = 1; gbc.weightx = 0.4;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        
-        // Dica: Se tiveres muitos bancos, aqui teremos de meter um JScrollPane no futuro.
-        // Para já, como são poucos, o painel simples serve.
-        painelProporcional.add(listaBancos, gbc);
+        painelProporcional.add(this.buttonContainer, gbc); // Adicionamos a variável global
 
         gbc.gridx = 2; gbc.weightx = 0.3;
         painelProporcional.add(Box.createGlue(), gbc);
 
         painelGeral.add(painelProporcional, BorderLayout.CENTER);
         return painelGeral;
+    }
+
+    private void refreshLoadPage() {
+        this.buttonContainer.removeAll();
+        for (Map.Entry<String, String> entry : registry.getHashMap().entrySet()) {
+            JButton button = new JButton(entry.getKey());
+            button.setFont(new Font("Arial", Font.BOLD, 18));
+            button.setPreferredSize(new Dimension(0, 60));
+            
+            button.addActionListener(e -> {
+                String path = entry.getValue();
+                System.out.println("Loading from: " + path);
+                this.manager = AccountManager.loadFromFile(path);
+                if(this.manager != null) {
+                    updateDashboardUI();
+                    cardLayout.show(painelPrincipal, "Dashboard");
+                }
+            });
+            buttonContainer.add(button);
+        }
+        this.buttonContainer.revalidate();
+        this.buttonContainer.repaint();
     }
 
     // --- TELA 4: DASHBOARD ---
@@ -267,6 +283,45 @@ public class Menu {
         painelGeral.add(lblTitulo, BorderLayout.CENTER);
 
         return painelGeral;
+    }
+
+    private void updateDashboardUI() {
+        // Segurança: Se não houver manager carregado, não faz nada
+        if (this.manager == null) return;
+
+        // 1. Atualizar Títulos e Saldos
+        // lblTitle.setText("Banco: " + this.manager.getName()); 
+        
+        double saldo = this.manager.getCurrentBalance();
+        
+        // Formatar dinheiro bonito (ex: 1.250,50 €)
+        lblSaldo.setText(String.format("%.2f €", saldo)); 
+        
+        // Mudar a cor do saldo (Verde se positivo, Vermelho se negativo)
+        if (saldo >= 0) {
+            lblSaldo.setForeground(Color.GREEN.darker()); // Verde escuro para ler melhor
+        } else {
+            lblSaldo.setForeground(Color.RED);
+        }
+
+        // 2. Preencher a Tabela
+        // Primeiro, obtemos o "Modelo" da tabela para poder mexer nos dados
+        DefaultTableModel model = (DefaultTableModel) tabelaTransacoes.getModel();
+        
+        // Limpar a tabela antiga (se não fizeres isto, os dados acumulam-se!)
+        model.setRowCount(0); 
+
+        // Loop pelas transações
+        DateTimeFormatter formatoData = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+        for (Transaction t : this.manager.getTransactions()) {
+            model.addRow(new Object[]{
+                t.getDate().format(formatoData), // Data formatada
+                t.getDescription(),              // Descrição
+                t.getType(),                     // O teu Enum (Crédito/Débito)
+                String.format("%.2f €", t.getValue()) // Valor
+            });
+        }
     }
 
     public static void main(String[] args) {

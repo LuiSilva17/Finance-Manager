@@ -1,31 +1,36 @@
 package com.financemanager;
 
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
+import java.io.*;
 import java.util.ArrayList;
 
 public class AccountManager implements Serializable {
     
-    private ArrayList<Transaction> list;
+    private ArrayList<Transaction> transactions;
     private String name;
 
     public AccountManager(String name) {
         this.name = name;
-        this.list = new ArrayList<>();
+        this.transactions = new ArrayList<>();
     }
 
     public void addTransaction(Transaction t) {
-        this.list.add(t);
+        this.transactions.add(t);
     }
 
     public ArrayList<Transaction> getTransactions() {
-        return this.list;
+        return this.transactions;
     }
 
     public String getName() {
         return this.name;
+    }
+
+    public double getCurrentBalance() {
+        double total = 0.0;
+        for (Transaction t : transactions) {
+            total += t.getValue();
+        }
+        return total;
     }
 
     public void saveToFile(String path) {
@@ -36,4 +41,13 @@ public class AccountManager implements Serializable {
         }
     }
 
+    public static AccountManager loadFromFile(String path) {
+        AccountManager manager = null;
+        try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(path))) {
+            manager = (AccountManager) in.readObject();
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        return manager;
+    }
 }

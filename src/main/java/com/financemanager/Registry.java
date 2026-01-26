@@ -3,12 +3,12 @@ package com.financemanager;
 import java.io.*;
 import java.util.HashMap;
 
-public class ManagerRegistry {
+public class Registry {
     
     private HashMap<String, String> map;
     private File file;
 
-    public ManagerRegistry(String fileName) {
+    public Registry(String fileName) {
         this.file = new File(System.getProperty("user.home") + File.separator + fileName);
         this.map = new HashMap<>();
     }

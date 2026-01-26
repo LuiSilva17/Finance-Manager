@@ -5,8 +5,11 @@ import java.util.ArrayList;
 
 public class AccountManager implements Serializable {
     
+    private static final long serialVersionUID = 1L;
+    
     private ArrayList<Transaction> transactions;
     private String name;
+    private String filePath;
 
     public AccountManager(String name) {
         this.name = name;
@@ -25,6 +28,10 @@ public class AccountManager implements Serializable {
         return this.name;
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public double getCurrentBalance() {
         double total = 0.0;
         for (Transaction t : transactions) {
@@ -33,18 +40,39 @@ public class AccountManager implements Serializable {
         return total;
     }
 
-    public void saveToFile(String path) {
-        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(path))) {
+    public void saveToFile() {
+        if (this.filePath == null) {
+            String dataPath = System.getProperty("user.home") + File.separator + "Finance Manager Data";
+            File directory = new File(dataPath);
+
+            if (!directory.exists()) {
+                directory.mkdirs();
+            }
+
+            this.filePath = dataPath + File.separator + this.name + ".manager";
+        }
+
+        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(this.filePath))) {
             out.writeObject(this);
+            System.out.println("File saved to: " + this.filePath);
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public String getFilePath() {
+        return this.filePath;
+    }
+
+    public void setFilePath(String path) {
+        this.filePath = path;
     }
 
     public static AccountManager loadFromFile(String path) {
         AccountManager manager = null;
         try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(path))) {
             manager = (AccountManager) in.readObject();
+            manager.setFilePath(path);
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }

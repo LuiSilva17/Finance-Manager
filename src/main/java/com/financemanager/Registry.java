@@ -5,7 +5,7 @@ import java.util.HashMap;
 
 public class Registry {
     
-    private static final String FILE_NAME = ".finance_manager_config.manager";
+    private static final String FILE_NAME = "finance_manager_config.manager";
     private HashMap<String, String> map; // key = name, value = file path
     private File file;
 
@@ -40,5 +40,14 @@ public class Registry {
 
     public HashMap<String, String> getHashMap() {
         return this.map;
+    }
+
+    public void renameManager(String oldName, String newName) {
+        if (this.map.containsKey(oldName)) {
+            String path = this.map.get(oldName);
+            this.map.remove(oldName);
+            this.map.put(newName, path);
+            save();
+        }
     }
 }

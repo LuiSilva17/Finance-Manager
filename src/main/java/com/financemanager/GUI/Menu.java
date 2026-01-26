@@ -17,11 +17,14 @@ public class Menu {
 
     private JFrame frame;
     private CardLayout cardLayout; // O gestor que troca as telas
-    private JPanel painelPrincipal; // O "baralho" que segura as telas todas
+    private JPanel mainPanel; // O "baralho" que segura as telas todas
     private Registry registry;
     private AccountManager manager;
 
     private JPanel buttonContainer;
+    private JTable transactionsTable;
+    private JLabel balanceLabel;
+    private JLabel bankNameLabel;
 
     public Menu() {
         this.registry = new Registry();
@@ -40,16 +43,16 @@ public class Menu {
 
     public void addContent() {
         cardLayout = new CardLayout();
-        painelPrincipal = new JPanel(cardLayout);
+        mainPanel = new JPanel(cardLayout);
 
         // Adicionar TODAS as cartas ao baralho
-        painelPrincipal.add(menuPanel(), "Menu");
-        painelPrincipal.add(createPanel(), "Create");
-        painelPrincipal.add(loadPanel(), "Load");
-        painelPrincipal.add(dashboardPanel(), "Dashboard");
+        mainPanel.add(menuPanel(), "Menu");
+        mainPanel.add(createPanel(), "Create");
+        mainPanel.add(loadPanel(), "Load");
+        mainPanel.add(dashboardPanel(), "Dashboard");
 
-        frame.add(painelPrincipal);
-        cardLayout.show(painelPrincipal, "Menu");
+        frame.add(mainPanel);
+        cardLayout.show(mainPanel, "Menu");
     }
 
     // --- TELA 1: MENU PRINCIPAL (ESTILO MINECRAFT / PROPORCIONAL) ---
@@ -76,10 +79,10 @@ public class Menu {
         btnLoad.setPreferredSize(buttonSize);
         btnExit.setPreferredSize(buttonSize);
 
-        btnCreate.addActionListener(e -> cardLayout.show(painelPrincipal, "Create"));
+        btnCreate.addActionListener(e -> cardLayout.show(mainPanel, "Create"));
         btnLoad.addActionListener(e -> {
             refreshLoadPage();
-            cardLayout.show(painelPrincipal, "Load");});
+            cardLayout.show(mainPanel, "Load");});
         btnExit.addActionListener(e -> System.exit(0));
 
         painelBotoes.add(btnCreate);
@@ -113,7 +116,7 @@ public class Menu {
         JPanel painelTopo = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JButton btnBack = new JButton("Back");
         btnBack.setFont(new Font("Arial", Font.BOLD, 14));
-        btnBack.addActionListener(e -> cardLayout.show(painelPrincipal, "Menu"));
+        btnBack.addActionListener(e -> cardLayout.show(mainPanel, "Menu"));
         painelTopo.add(btnBack);
         painelGeral.add(painelTopo, BorderLayout.NORTH);
 
@@ -164,9 +167,16 @@ public class Menu {
             }
             
             AccountManager newManager = CSVImporter.importTransactions(f, trimmedName);
-            registry.registerManager(trimmedName, path);
-            
-            cardLayout.show(painelPrincipal, "Dashboard");
+            newManager.setName(trimmedName);
+            newManager.saveToFile();
+            if (newManager.getFilePath() != null) {
+                registry.registerManager(trimmedName, newManager.getFilePath());
+                
+                this.manager = newManager;
+                updateDashboardUI();
+
+                cardLayout.show(mainPanel, "Dashboard");
+            }
         });
 
         // Montar Form
@@ -213,7 +223,7 @@ public class Menu {
         JPanel painelTopo = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JButton btnBack = new JButton("Back");
         btnBack.setFont(new Font("Arial", Font.BOLD, 14));
-        btnBack.addActionListener(e -> cardLayout.show(painelPrincipal, "Menu"));
+        btnBack.addActionListener(e -> cardLayout.show(mainPanel, "Menu"));
         painelTopo.add(btnBack);
         painelGeral.add(painelTopo, BorderLayout.NORTH);
 
@@ -242,21 +252,45 @@ public class Menu {
 
     private void refreshLoadPage() {
         this.buttonContainer.removeAll();
-        for (Map.Entry<String, String> entry : registry.getHashMap().entrySet()) {
-            JButton button = new JButton(entry.getKey());
-            button.setFont(new Font("Arial", Font.BOLD, 18));
-            button.setPreferredSize(new Dimension(0, 60));
+
+        if (registry.getHashMap().isEmpty()) {
             
-            button.addActionListener(e -> {
-                String path = entry.getValue();
-                System.out.println("Loading from: " + path);
-                this.manager = AccountManager.loadFromFile(path);
-                if(this.manager != null) {
-                    updateDashboardUI();
-                    cardLayout.show(painelPrincipal, "Dashboard");
-                }
-            });
-            buttonContainer.add(button);
+            JLabel emptyMsg = new JLabel("No Manager has been created yet", SwingConstants.CENTER);
+            emptyMsg.setFont(new Font("Arial", Font.PLAIN, 16));
+            emptyMsg.setForeground(Color.GRAY); // Cinzento para parecer info
+
+            JButton btnGoToCreate = new JButton("Create Manager");
+            btnGoToCreate.setFont(new Font("Arial", Font.BOLD, 18));
+            btnGoToCreate.setPreferredSize(new Dimension(0, 60));
+            btnGoToCreate.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+            btnGoToCreate.addActionListener(e -> cardLayout.show(mainPanel, "Create"));
+
+            this.buttonContainer.add(emptyMsg);
+            this.buttonContainer.add(btnGoToCreate);
+
+        } else {
+
+            for (Map.Entry<String, String> entry : registry.getHashMap().entrySet()) {
+                JButton button = new JButton(entry.getKey());
+                button.setFont(new Font("Arial", Font.BOLD, 18));
+                button.setPreferredSize(new Dimension(0, 60));
+                
+                button.addActionListener(e -> {
+                    String path = entry.getValue();
+                    String savedName = entry.getKey(); 
+                    
+                    System.out.println("Loading from: " + path);
+                    this.manager = AccountManager.loadFromFile(path);
+                    
+                    if(this.manager != null) {
+                        this.manager.setName(savedName); 
+                        updateDashboardUI();
+                        cardLayout.show(mainPanel, "Dashboard");
+                    }
+                });
+                this.buttonContainer.add(button);
+            }
         }
         this.buttonContainer.revalidate();
         this.buttonContainer.repaint();
@@ -264,62 +298,119 @@ public class Menu {
 
     // --- TELA 4: DASHBOARD ---
     private JPanel dashboardPanel() {
-        JPanel painelGeral = new JPanel(new BorderLayout());
+        JPanel dashboardPanel = new JPanel(new BorderLayout());
 
-        // Botão Back
-        JPanel painelTopo = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Margem para respirar
+
+        // Back Button
         JButton btnBack = new JButton("Back to Menu");
         btnBack.setFont(new Font("Arial", Font.BOLD, 14));
-        btnBack.addActionListener(e -> cardLayout.show(painelPrincipal, "Menu"));
-        
-        painelTopo.add(btnBack);
-        painelGeral.add(painelTopo, BorderLayout.NORTH);
+        btnBack.addActionListener(e -> cardLayout.show(mainPanel, "Menu"));
+        topPanel.add(btnBack, BorderLayout.WEST);
 
-        // Conteúdo Temporário
-        JLabel lblTitulo = new JLabel("DASHBOARD", SwingConstants.CENTER);
-        lblTitulo.setFont(new Font("Arial", Font.BOLD, 40));
-        lblTitulo.setForeground(Color.DARK_GRAY);
-        
-        painelGeral.add(lblTitulo, BorderLayout.CENTER);
+        // Bank Name + Edit Pencil
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
 
-        return painelGeral;
+        this.bankNameLabel = new JLabel("Bank Name");
+        this.bankNameLabel.setFont(new Font("Arial", Font.BOLD, 20));
+
+        // Pencil Button 
+        JButton editButton = new JButton("✎"); // Pencil Symbol
+        editButton.setFont(new Font("Segoe UI Symbol", Font.PLAIN, 18));
+        editButton.setToolTipText("Edit Name");
+        editButton.setFocusPainted(false);
+        editButton.setBorderPainted(false); 
+        editButton.setContentAreaFilled(false); 
+        editButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        editButton.addActionListener(e -> {
+            if (this.manager == null) {
+                return;
+            }
+
+            String currentName = this.manager.getName();
+            String newName = JOptionPane.showInputDialog(dashboardPanel, "Enter new bank name:", currentName);
+            
+            if (newName != null && !newName.trim().isEmpty()) {
+                this.manager.setName(newName.trim());
+                this.bankNameLabel.setText(newName.trim());
+                this.manager.saveToFile(); 
+                this.registry.renameManager(currentName, newName);
+            }
+        });
+
+        titlePanel.add(this.bankNameLabel);
+        titlePanel.add(editButton);
+        
+        topPanel.add(titlePanel, BorderLayout.CENTER);
+
+        // Balance label
+        this.balanceLabel = new JLabel("0.00 €"); 
+        this.balanceLabel.setFont(new Font("Arial", Font.BOLD, 24));
+        this.balanceLabel.setForeground(new Color(0, 100, 0)); // Dark Green
+        topPanel.add(this.balanceLabel, BorderLayout.EAST);
+
+        dashboardPanel.add(topPanel, BorderLayout.NORTH);
+
+        String[] columnNames = {"Date", "Description", "Type", "Value"};
+        Object[][] data = {}; // Empty initially
+
+        DefaultTableModel model = new DefaultTableModel(data, columnNames) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false; 
+            }
+        };
+
+        this.transactionsTable = new JTable(model);
+        this.transactionsTable.setRowHeight(30);
+        this.transactionsTable.setFont(new Font("Arial", Font.PLAIN, 14));
+        this.transactionsTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 14));
+
+        JScrollPane scrollPane = new JScrollPane(this.transactionsTable);
+        dashboardPanel.add(scrollPane, BorderLayout.CENTER);
+
+        // --- BOTTOM SECTION (Back Button) ---
+        /* JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton backButton = new JButton("Back to Menu");
+        backButton.addActionListener(e -> cardLayout.show(menuPanel(), "Menu")); 
+        bottomPanel.add(backButton);
+        
+        dashboardPanel.add(bottomPanel, BorderLayout.SOUTH);*/
+
+        return dashboardPanel;
     }
 
     private void updateDashboardUI() {
-        // Segurança: Se não houver manager carregado, não faz nada
-        if (this.manager == null) return;
-
-        // 1. Atualizar Títulos e Saldos
-        // lblTitle.setText("Banco: " + this.manager.getName()); 
+        if (this.manager == null) {
+            return;
+        }
         
+        this.bankNameLabel.setText(this.manager.getName());
+
         double saldo = this.manager.getCurrentBalance();
         
-        // Formatar dinheiro bonito (ex: 1.250,50 €)
-        lblSaldo.setText(String.format("%.2f €", saldo)); 
+        balanceLabel.setText(String.format("%.2f €", saldo)); 
         
-        // Mudar a cor do saldo (Verde se positivo, Vermelho se negativo)
         if (saldo >= 0) {
-            lblSaldo.setForeground(Color.GREEN.darker()); // Verde escuro para ler melhor
+            balanceLabel.setForeground(Color.GREEN.darker());
         } else {
-            lblSaldo.setForeground(Color.RED);
+            balanceLabel.setForeground(Color.RED);
         }
 
-        // 2. Preencher a Tabela
-        // Primeiro, obtemos o "Modelo" da tabela para poder mexer nos dados
-        DefaultTableModel model = (DefaultTableModel) tabelaTransacoes.getModel();
+        DefaultTableModel model = (DefaultTableModel) transactionsTable.getModel();
         
-        // Limpar a tabela antiga (se não fizeres isto, os dados acumulam-se!)
         model.setRowCount(0); 
 
-        // Loop pelas transações
         DateTimeFormatter formatoData = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
         for (Transaction t : this.manager.getTransactions()) {
             model.addRow(new Object[]{
-                t.getDate().format(formatoData), // Data formatada
-                t.getDescription(),              // Descrição
-                t.getType(),                     // O teu Enum (Crédito/Débito)
-                String.format("%.2f €", t.getValue()) // Valor
+                t.getDate().format(formatoData),
+                t.getDescription(),
+                t.getType(),
+                String.format("%.2f €", t.getValue())
             });
         }
     }

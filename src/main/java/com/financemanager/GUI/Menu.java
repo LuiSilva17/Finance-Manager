@@ -1,15 +1,23 @@
 package com.financemanager.GUI;
 
 import javax.swing.*;
+
+import com.financemanager.AccountManager;
+import com.financemanager.CSVImporter;
+import com.financemanager.Registry;
+
 import java.awt.*;
+import java.io.File;
 
 public class Menu {
 
     private JFrame frame;
     private CardLayout cardLayout; // O gestor que troca as telas
     private JPanel painelPrincipal; // O "baralho" que segura as telas todas
+    private Registry registry;
 
     public Menu() {
+        this.registry = new Registry("finance_config.dat");
         frame = new JFrame();
         frame.setTitle("Finance Manager");
         frame.setSize(800, 500);
@@ -127,10 +135,28 @@ public class Menu {
 
         JButton btnCreateManager = new JButton("Create Manager");
         btnCreateManager.setFont(new Font("Arial", Font.BOLD, 18));
-        // Altura fixa também para este botão ficar igual aos do menu
         btnCreateManager.setPreferredSize(new Dimension(0, 60));
         btnCreateManager.addActionListener(e -> {
-            // Aqui virá a lógica de criar o ficheiro real
+            String path = txtPath.getText();
+            if (path.equals("No file selected...")) {
+                JOptionPane.showMessageDialog(frame, "Please select a file first.");
+                return;
+            }
+            File f = new File(path);
+            // Logic so that the program gives the original file name, as the manager name
+            String fileName = f.getName();
+            int index = fileName.lastIndexOf(".");
+            String trimmedName;
+
+            if (index > 0) {
+                trimmedName = fileName.substring(0, index);
+            } else {
+                trimmedName = fileName;
+            }
+            
+            AccountManager newManager = CSVImporter.importTransactions(f, path);
+            registry.registerManager(trimmedName, path);
+            
             cardLayout.show(painelPrincipal, "Dashboard");
         });
 

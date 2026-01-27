@@ -78,4 +78,11 @@ public class AccountManager implements Serializable {
         }
         return manager;
     }
+
+    public void merge(AccountManager tempManager) {
+        if (tempManager != null && tempManager.getTransactions() != null) {
+            this.transactions.addAll(tempManager.getTransactions());
+            
+        }
+    }
 }

@@ -20,6 +20,7 @@ public class Menu {
     private JPanel mainPanel; // O "baralho" que segura as telas todas
     private Registry registry;
     private AccountManager manager;
+    private boolean isEditMode = false;
 
     private JPanel buttonContainer;
     private JTable transactionsTable;
@@ -219,29 +220,53 @@ public class Menu {
     private JPanel loadPanel() {
         JPanel painelGeral = new JPanel(new BorderLayout());
 
-        // 1. O Topo (Back Button) - IGUAL
-        JPanel painelTopo = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        // --- TOP SECTION ---
+        JPanel painelTopo = new JPanel(new BorderLayout());
+        painelTopo.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // Back Button (Left)
         JButton btnBack = new JButton("Back");
         btnBack.setFont(new Font("Arial", Font.BOLD, 14));
-        btnBack.addActionListener(e -> cardLayout.show(mainPanel, "Menu"));
-        painelTopo.add(btnBack);
+        btnBack.addActionListener(e -> {
+            this.isEditMode = false; // Reset mode when leaving
+            cardLayout.show(mainPanel, "Menu");
+        });
+        
+        // Edit Button (Right)
+        JButton btnEdit = new JButton("Edit");
+        btnEdit.setFont(new Font("Arial", Font.BOLD, 14));
+        btnEdit.addActionListener(e -> {
+            // Toggle mode
+            this.isEditMode = !this.isEditMode;
+            
+            // Change text based on mode
+            if (this.isEditMode) {
+                btnEdit.setText("Done");
+            } else {
+                btnEdit.setText("Edit");
+            }
+            
+            // Redraw list to show/hide red crosses
+            refreshLoadPage();
+        });
+
+        painelTopo.add(btnBack, BorderLayout.WEST);
+        painelTopo.add(btnEdit, BorderLayout.EAST);
+        
         painelGeral.add(painelTopo, BorderLayout.NORTH);
 
-        // 2. O Centro (Layout Proporcional) - IGUAL
+        // --- CENTER SECTION ---
         JPanel painelProporcional = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
 
-        // 3. A Lista de Bancos (AQUI MUDA)
-        // Inicializamos a variável global, mas deixamo-la VAZIA por agora
         this.buttonContainer = new JPanel(new GridLayout(0, 1, 0, 15)); 
         
-        // Configuração do Layout - IGUAL
         gbc.gridx = 0; gbc.weightx = 0.3;
         painelProporcional.add(Box.createGlue(), gbc);
 
         gbc.gridx = 1; gbc.weightx = 0.4;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        painelProporcional.add(this.buttonContainer, gbc); // Adicionamos a variável global
+        painelProporcional.add(this.buttonContainer, gbc);
 
         gbc.gridx = 2; gbc.weightx = 0.3;
         painelProporcional.add(Box.createGlue(), gbc);
@@ -254,44 +279,86 @@ public class Menu {
         this.buttonContainer.removeAll();
 
         if (registry.getHashMap().isEmpty()) {
-            
+            // --- EMPTY STATE ---
             JLabel emptyMsg = new JLabel("No Manager has been created yet", SwingConstants.CENTER);
             emptyMsg.setFont(new Font("Arial", Font.PLAIN, 16));
-            emptyMsg.setForeground(Color.GRAY); // Cinzento para parecer info
+            emptyMsg.setForeground(Color.GRAY);
+            emptyMsg.setBorder(BorderFactory.createEmptyBorder(0, 0, 20, 0)); 
 
             JButton btnGoToCreate = new JButton("Create Manager");
             btnGoToCreate.setFont(new Font("Arial", Font.BOLD, 18));
-            btnGoToCreate.setPreferredSize(new Dimension(0, 60));
+            btnGoToCreate.setPreferredSize(new Dimension(0, 60)); 
             btnGoToCreate.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
             btnGoToCreate.addActionListener(e -> cardLayout.show(mainPanel, "Create"));
 
             this.buttonContainer.add(emptyMsg);
             this.buttonContainer.add(btnGoToCreate);
+            this.isEditMode = false;
 
         } else {
-
+            // --- BANK LIST ---
             for (Map.Entry<String, String> entry : registry.getHashMap().entrySet()) {
-                JButton button = new JButton(entry.getKey());
-                button.setFont(new Font("Arial", Font.BOLD, 18));
-                button.setPreferredSize(new Dimension(0, 60));
-                
-                button.addActionListener(e -> {
-                    String path = entry.getValue();
-                    String savedName = entry.getKey(); 
+                String name = entry.getKey();
+                String path = entry.getValue();
+
+                JPanel rowPanel = new JPanel(new BorderLayout(5, 0)); // 5px gap entre botões
+                rowPanel.setOpaque(false);
+
+                // Rename button
+                if (this.isEditMode) {
+                    JButton btnRename = new JButton("✎");
+                    btnRename.setFont(new Font("Segoe UI Symbol", Font.PLAIN, 18));
+                    btnRename.setBackground(new Color(255, 165, 0)); // Laranja (Cor de edição)
+                    btnRename.setForeground(Color.WHITE);
+                    btnRename.setFocusPainted(false);
+                    btnRename.setPreferredSize(new Dimension(60, 60)); // Quadrado
                     
+                    btnRename.addActionListener(e -> {
+                        renameManagerFromMenu(name, path);
+                    });
+
+                    rowPanel.add(btnRename, BorderLayout.WEST);
+                }
+
+                // Main button
+                JButton btnManager = new JButton(name);
+                btnManager.setFont(new Font("Arial", Font.BOLD, 18));
+                btnManager.setPreferredSize(new Dimension(0, 60));
+                
+                btnManager.addActionListener(e -> {
+                    if (this.isEditMode) return; // Bloqueia clique se estiver a editar
+
                     System.out.println("Loading from: " + path);
                     this.manager = AccountManager.loadFromFile(path);
-                    
                     if(this.manager != null) {
-                        this.manager.setName(savedName); 
+                        this.manager.setName(name); 
                         updateDashboardUI();
                         cardLayout.show(mainPanel, "Dashboard");
                     }
                 });
-                this.buttonContainer.add(button);
+
+                rowPanel.add(btnManager, BorderLayout.CENTER);
+
+                // Delete button
+                if (this.isEditMode) {
+                    JButton btnDelete = new JButton("X");
+                    btnDelete.setFont(new Font("Arial", Font.BOLD, 16));
+                    btnDelete.setBackground(Color.RED); // Vermelho (Perigo)
+                    btnDelete.setForeground(Color.WHITE);
+                    btnDelete.setFocusPainted(false);
+                    btnDelete.setPreferredSize(new Dimension(60, 60)); // Quadrado
+                    
+                    btnDelete.addActionListener(e -> {
+                        deleteManager(name, path);
+                    });
+
+                    rowPanel.add(btnDelete, BorderLayout.EAST);
+                }
+
+                this.buttonContainer.add(rowPanel);
             }
         }
+
         this.buttonContainer.revalidate();
         this.buttonContainer.repaint();
     }
@@ -300,84 +367,124 @@ public class Menu {
     private JPanel dashboardPanel() {
         JPanel dashboardPanel = new JPanel(new BorderLayout());
 
+        // --- TOP SECTION ---
         JPanel topPanel = new JPanel(new BorderLayout());
-        topPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Margem para respirar
+        topPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Back Button
+        // 1. LEFT: Back Button
         JButton btnBack = new JButton("Back to Menu");
         btnBack.setFont(new Font("Arial", Font.BOLD, 14));
         btnBack.addActionListener(e -> cardLayout.show(mainPanel, "Menu"));
         topPanel.add(btnBack, BorderLayout.WEST);
 
-        // Bank Name + Edit Pencil
-        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        // 2. CENTER: Name + Pencil + Balance
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 0));
 
         this.bankNameLabel = new JLabel("Bank Name");
-        this.bankNameLabel.setFont(new Font("Arial", Font.BOLD, 20));
+        this.bankNameLabel.setFont(new Font("Arial", Font.BOLD, 22));
 
-        // Pencil Button 
-        JButton editButton = new JButton("✎"); // Pencil Symbol
-        editButton.setFont(new Font("Segoe UI Symbol", Font.PLAIN, 18));
+        JButton editButton = new JButton("✎");
+        editButton.setFont(new Font("Segoe UI Symbol", Font.PLAIN, 20));
         editButton.setToolTipText("Edit Name");
         editButton.setFocusPainted(false);
-        editButton.setBorderPainted(false); 
-        editButton.setContentAreaFilled(false); 
+        editButton.setBorderPainted(false);
+        editButton.setContentAreaFilled(false);
         editButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
+        
         editButton.addActionListener(e -> {
-            if (this.manager == null) {
-                return;
-            }
-
+            if (this.manager == null) return;
             String currentName = this.manager.getName();
             String newName = JOptionPane.showInputDialog(dashboardPanel, "Enter new bank name:", currentName);
             
             if (newName != null && !newName.trim().isEmpty()) {
-                this.manager.setName(newName.trim());
-                this.bankNameLabel.setText(newName.trim());
-                this.manager.saveToFile(); 
-                this.registry.renameManager(currentName, newName);
+                String finalName = newName.trim();
+                this.manager.setName(finalName);
+                this.bankNameLabel.setText(finalName);
+                this.manager.saveToFile();
+                this.registry.renameManager(currentName, finalName);
             }
         });
 
+        this.balanceLabel = new JLabel("0.00 €");
+        this.balanceLabel.setFont(new Font("Arial", Font.BOLD, 22));
+        this.balanceLabel.setForeground(new Color(0, 100, 0)); 
+
         titlePanel.add(this.bankNameLabel);
         titlePanel.add(editButton);
-        
+        titlePanel.add(new JLabel("|")); 
+        titlePanel.add(this.balanceLabel);
+
         topPanel.add(titlePanel, BorderLayout.CENTER);
 
-        // Balance label
-        this.balanceLabel = new JLabel("0.00 €"); 
-        this.balanceLabel.setFont(new Font("Arial", Font.BOLD, 24));
-        this.balanceLabel.setForeground(new Color(0, 100, 0)); // Dark Green
-        topPanel.add(this.balanceLabel, BorderLayout.EAST);
+        // 3. RIGHT SECTION (View Mode + Add File)
+        // Criamos um sub-painel para segurar as duas coisas juntas à direita
+        JPanel rightActionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+
+        // A. View Mode Dropdown (NOVO!)
+        String[] modes = {"Default Mode", "Group Mode"};
+        JComboBox<String> viewModeBox = new JComboBox<>(modes);
+        viewModeBox.setFont(new Font("Arial", Font.BOLD, 14));
+        viewModeBox.setFocusable(false); // Tira a borda azul feia de seleção
+        viewModeBox.setBackground(Color.WHITE);
+        
+        // Ação do Dropdown (Preparado para o futuro)
+        viewModeBox.addActionListener(e -> {
+            String selected = (String) viewModeBox.getSelectedItem();
+            if ("Group Mode".equals(selected)) {
+                // Futuramente chamaremos aqui a função para agrupar!
+                System.out.println("Switching to Group Mode..."); 
+                // ex: updateGroupDashboardUI();
+            } else {
+                System.out.println("Switching to Default Mode...");
+                updateDashboardUI(); // Volta à tabela normal
+            }
+        });
+
+        // B. Add File Button (O teu código anterior)
+        JButton btnAddFile = new JButton("+ Add File");
+        btnAddFile.setFont(new Font("Arial", Font.BOLD, 14));
+        btnAddFile.setBackground(new Color(230, 230, 250)); 
+        btnAddFile.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        btnAddFile.addActionListener(e -> {
+            JFileChooser fileChooser = new JFileChooser();
+            int option = fileChooser.showOpenDialog(frame);
+            
+            if (option == JFileChooser.APPROVE_OPTION) {
+                File selectedFile = fileChooser.getSelectedFile();
+                AccountManager tempManager = CSVImporter.importTransactions(selectedFile, "Temp");
+                
+                if (tempManager != null && this.manager != null) {
+                    this.manager.merge(tempManager);
+                    this.manager.saveToFile();
+                    updateDashboardUI(); 
+                    JOptionPane.showMessageDialog(frame, "Transactions added successfully!");
+                }
+            }
+        });
+
+        // Adiciona ambos ao painel da direita
+        rightActionPanel.add(viewModeBox);
+        rightActionPanel.add(btnAddFile);
+
+        // Adiciona o painel da direita ao topo
+        topPanel.add(rightActionPanel, BorderLayout.EAST);
 
         dashboardPanel.add(topPanel, BorderLayout.NORTH);
 
+        // --- CENTER SECTION (Table) ---
+        // Mantém-se igual
         String[] columnNames = {"Date", "Description", "Type", "Value"};
-        Object[][] data = {}; // Empty initially
-
+        Object[][] data = {};
         DefaultTableModel model = new DefaultTableModel(data, columnNames) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false; 
-            }
+            @Override public boolean isCellEditable(int row, int col) { return false; }
         };
-
         this.transactionsTable = new JTable(model);
         this.transactionsTable.setRowHeight(30);
         this.transactionsTable.setFont(new Font("Arial", Font.PLAIN, 14));
         this.transactionsTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 14));
-
         JScrollPane scrollPane = new JScrollPane(this.transactionsTable);
         dashboardPanel.add(scrollPane, BorderLayout.CENTER);
-
-        // --- BOTTOM SECTION (Back Button) ---
-        /* JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JButton backButton = new JButton("Back to Menu");
-        backButton.addActionListener(e -> cardLayout.show(menuPanel(), "Menu")); 
-        bottomPanel.add(backButton);
-        
-        dashboardPanel.add(bottomPanel, BorderLayout.SOUTH);*/
 
         return dashboardPanel;
     }
@@ -412,6 +519,58 @@ public class Menu {
                 t.getType(),
                 String.format("%.2f €", t.getValue())
             });
+        }
+    }
+
+    private void deleteManager(String name, String path) {
+        int choice = JOptionPane.showConfirmDialog(
+            frame, 
+            "Are you sure you want to delete '" + name + "'?\nThe file will be deleted forever.", 
+            "Delete Manager", 
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE
+        );
+
+        if (choice == JOptionPane.YES_OPTION) {
+            File file = new File(path);
+            if (file.exists()) {
+                if (file.delete()) {
+                    System.out.println("File deleted: " + path);
+                } else {
+                    System.err.println("Failed to delete file.");
+                    JOptionPane.showMessageDialog(frame, "Error: Could not delete file from disk.");
+                    return;
+                }
+            }
+
+            registry.getHashMap().remove(name);
+            registry.save();
+            refreshLoadPage();
+        }
+    }
+
+    private void renameManagerFromMenu(String oldName, String path) {
+        String newName = JOptionPane.showInputDialog(frame, "Rename '" + oldName + "' to:", oldName);
+
+        if (newName != null && !newName.trim().isEmpty()) {
+            String finalName = newName.trim();
+
+            // 1. Carregar o manager temporariamente para mudar o nome lá dentro
+            AccountManager tempManager = AccountManager.loadFromFile(path);
+            
+            if (tempManager != null) {
+                // 2. Mudar o nome no objeto e gravar no disco
+                tempManager.setName(finalName);
+                tempManager.saveToFile(); // Isto garante que o ficheiro fica atualizado
+                
+                // 3. Mudar o nome na Lista Telefónica (Registry)
+                registry.renameManager(oldName, finalName);
+
+                // 4. Atualizar a lista visualmente
+                refreshLoadPage();
+            } else {
+                JOptionPane.showMessageDialog(frame, "Error loading file to rename.");
+            }
         }
     }
 

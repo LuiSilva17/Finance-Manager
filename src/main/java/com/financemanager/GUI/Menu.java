@@ -1,10 +1,13 @@
 package com.financemanager.GUI;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import org.jdesktop.swingx.JXTreeTable;
+import org.jdesktop.swingx.treetable.AbstractTreeTableModel;
 
 import com.financemanager.AccountManager;
-import com.financemanager.CategoryManager; // <--- NOVO IMPORT
+import com.financemanager.CategoryManager;
 import com.financemanager.CSVImporter;
 import com.financemanager.Registry;
 import com.financemanager.Transaction;
@@ -13,9 +16,7 @@ import java.awt.*;
 import java.io.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.util.Map;
+import java.util.List;
 
 public class Menu {
 
@@ -30,9 +31,11 @@ public class Menu {
     private JTable transactionsTable;
     private JLabel balanceLabel;
     private JLabel bankNameLabel;
+    private JScrollPane dashboardScrollPane;
+    
+    private JComboBox<String> viewModeBox; 
 
     public Menu() {
-        // --- ALTERAÇÃO 1: Carregar as categorias da memória logo ao abrir o programa ---
         CategoryManager.getInstance().load(); 
 
         this.registry = new Registry();
@@ -67,15 +70,11 @@ public class Menu {
         JPanel painelGeral = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
 
-        // --- ALTERAÇÃO 2: Mudei para 4 linhas para caber o novo botão ---
-        JPanel painelBotoes = new JPanel(new GridLayout(4, 1, 0, 20)); // Reduzi ligeiramente o gap vertical para caber tudo
+        JPanel painelBotoes = new JPanel(new GridLayout(4, 1, 0, 20)); 
 
         JButton btnCreate = new JButton("Create New Manager");
         JButton btnLoad = new JButton("Load Manager");
-        
-        // --- NOVO BOTÃO ---
         JButton btnManageCats = new JButton("Manage Categories");
-        
         JButton btnExit = new JButton("Exit");
 
         Font font = new Font("Arial", Font.BOLD, 18);
@@ -95,14 +94,13 @@ public class Menu {
             refreshLoadPage();
             cardLayout.show(mainPanel, "Load");});
         
-        // --- AÇÃO DO NOVO BOTÃO ---
         btnManageCats.addActionListener(e -> openCategoryManager());
         
         btnExit.addActionListener(e -> System.exit(0));
 
         painelBotoes.add(btnCreate);
         painelBotoes.add(btnLoad);
-        painelBotoes.add(btnManageCats); // Adicionar ao painel
+        painelBotoes.add(btnManageCats); 
         painelBotoes.add(btnExit);
 
         gbc.gridx = 0; gbc.gridy = 0;
@@ -182,7 +180,8 @@ public class Menu {
                 registry.registerManager(trimmedName, newManager.getFilePath());
                 
                 this.manager = newManager;
-                updateDashboardUI();
+                
+                refreshCurrentView();
 
                 cardLayout.show(mainPanel, "Dashboard");
             }
@@ -323,7 +322,9 @@ public class Menu {
                     this.manager = AccountManager.loadFromFile(path);
                     if(this.manager != null) {
                         this.manager.setName(name); 
-                        updateDashboardUI();
+                        
+                        refreshCurrentView();
+
                         cardLayout.show(mainPanel, "Dashboard");
                     }
                 });
@@ -406,20 +407,12 @@ public class Menu {
         JPanel rightActionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
 
         String[] modes = {"Default Mode", "Group Mode"};
-        JComboBox<String> viewModeBox = new JComboBox<>(modes);
-        viewModeBox.setFont(new Font("Arial", Font.BOLD, 14));
-        viewModeBox.setFocusable(false); 
-        viewModeBox.setBackground(Color.WHITE);
+        this.viewModeBox = new JComboBox<>(modes); 
+        this.viewModeBox.setFont(new Font("Arial", Font.BOLD, 14));
+        this.viewModeBox.setFocusable(false); 
+        this.viewModeBox.setBackground(Color.WHITE);
         
-        viewModeBox.addActionListener(e -> {
-            String selected = (String) viewModeBox.getSelectedItem();
-            if ("Group Mode".equals(selected)) {
-                System.out.println("Switching to Group Mode..."); 
-            } else {
-                System.out.println("Switching to Default Mode...");
-                updateDashboardUI(); 
-            }
-        });
+        this.viewModeBox.addActionListener(e -> refreshCurrentView());
 
         JButton btnAddFile = new JButton("+ Add File");
         btnAddFile.setFont(new Font("Arial", Font.BOLD, 14));
@@ -437,14 +430,23 @@ public class Menu {
                 if (tempManager != null && this.manager != null) {
                     this.manager.merge(tempManager);
                     this.manager.saveToFile();
-                    updateDashboardUI(); 
+                    refreshCurrentView(); 
                     JOptionPane.showMessageDialog(frame, "Transactions added successfully!");
                 }
             }
         });
 
+        JButton btnCats = new JButton("Categories");
+        btnCats.setFont(new Font("Arial", Font.BOLD, 14));
+        btnCats.addActionListener(e -> {
+            openCategoryManager();
+            refreshCurrentView(); 
+        });
+
         rightActionPanel.add(viewModeBox);
+        rightActionPanel.add(btnCats);
         rightActionPanel.add(btnAddFile);
+        
 
         topPanel.add(rightActionPanel, BorderLayout.EAST);
 
@@ -459,8 +461,11 @@ public class Menu {
         this.transactionsTable.setRowHeight(30);
         this.transactionsTable.setFont(new Font("Arial", Font.PLAIN, 14));
         this.transactionsTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 14));
-        JScrollPane scrollPane = new JScrollPane(this.transactionsTable);
-        dashboardPanel.add(scrollPane, BorderLayout.CENTER);
+        this.transactionsTable.setShowGrid(true); // Grelha no Default Mode
+        this.transactionsTable.setGridColor(Color.LIGHT_GRAY);
+        
+        this.dashboardScrollPane = new JScrollPane(this.transactionsTable);
+        dashboardPanel.add(this.dashboardScrollPane, BorderLayout.CENTER);
 
         return dashboardPanel;
     }
@@ -546,7 +551,6 @@ public class Menu {
         }
     }
 
-    // --- ALTERAÇÃO 3: O NOVO MÉTODO DO GESTOR DE CATEGORIAS ---
     private void openCategoryManager() {
         JDialog dialog = new JDialog(frame, "Manage Categories", true); 
         dialog.setSize(700, 500);
@@ -571,10 +575,12 @@ public class Menu {
 
         JPanel leftButtons = new JPanel(new FlowLayout());
         JButton btnAddCat = new JButton("Add Category");
+        JButton btnEditCat = new JButton("✎");
         JButton btnRemCat = new JButton("Remove Category");
         JButton btnInfo = new JButton("ℹ"); 
 
         leftButtons.add(btnAddCat);
+        leftButtons.add(btnEditCat);
         leftButtons.add(btnRemCat);
         leftButtons.add(btnInfo);
 
@@ -586,17 +592,16 @@ public class Menu {
 
         JPanel rightButtons = new JPanel(new FlowLayout());
         JButton btnAddKey = new JButton("Add Keyword");
+        JButton btnEditKey = new JButton("Edit");
         JButton btnRemKey = new JButton("Remove Keyword");
 
         rightButtons.add(btnAddKey);
+        rightButtons.add(btnEditKey);
         rightButtons.add(btnRemKey);
 
         rightPanel.add(new JScrollPane(keywordList), BorderLayout.CENTER);
         rightPanel.add(rightButtons, BorderLayout.SOUTH);
 
-        // --- LÓGICA (EVENTOS) ---
-
-        // 1. Quando clicas numa Categoria -> Carrega as Keywords na direita
         categoryList.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 String selectedCat = categoryList.getSelectedValue();
@@ -613,7 +618,6 @@ public class Menu {
             }
         });
 
-        // 2. Botão Adicionar Categoria
         btnAddCat.addActionListener(e -> {
             String name = JOptionPane.showInputDialog(dialog, "New Group Name:");
             if (name != null && !name.trim().isEmpty()) {
@@ -628,7 +632,6 @@ public class Menu {
             }
         });
 
-        // 3. Botão Remover Categoria
         btnRemCat.addActionListener(e -> {
             String selected = categoryList.getSelectedValue();
             if (selected != null) {
@@ -642,7 +645,6 @@ public class Menu {
             }
         });
 
-        // 4. Botão Adicionar Keyword
         btnAddKey.addActionListener(e -> {
             String selectedCat = categoryList.getSelectedValue();
             if (selectedCat == null) {
@@ -662,7 +664,6 @@ public class Menu {
             }
         });
 
-        // 5. Botão Remover Keyword
         btnRemKey.addActionListener(e -> {
             String selectedCat = categoryList.getSelectedValue();
             String selectedKey = keywordList.getSelectedValue();
@@ -674,7 +675,6 @@ public class Menu {
             }
         });
 
-        // 6. Botão de Informação
         btnInfo.addActionListener(e -> {
             String message = "How to use Keywords:\n\n" +
                              "1. Create a Group (e.g., 'Supermarket').\n" +
@@ -685,9 +685,95 @@ public class Menu {
             JOptionPane.showMessageDialog(dialog, message, "Help", JOptionPane.INFORMATION_MESSAGE);
         });
 
+        btnEditCat.addActionListener(e -> {
+            String selected = categoryList.getSelectedValue();
+            if (selected != null) {
+                String newName = JOptionPane.showInputDialog(dialog, "Rename '" + selected + "' to:", selected);
+                if (newName != null && !newName.trim().isEmpty()) {
+                    String finalName = newName.trim();
+                    ArrayList<String> keys = catManager.getCategoriesMap().get(selected);
+                    catManager.getCategoriesMap().remove(selected);
+                    catManager.getCategoriesMap().put(finalName, keys);
+                    
+                    categoryModel.removeElement(selected);
+                    categoryModel.addElement(finalName);
+                    catManager.save();
+                }
+            }
+        });
+
+        btnEditKey.addActionListener(e -> {
+            String selectedCat = categoryList.getSelectedValue();
+            String selectedKey = keywordList.getSelectedValue();
+        
+            if (selectedCat != null && selectedKey != null) {
+                String newKey = JOptionPane.showInputDialog(dialog, "Rename keyword:", selectedKey);
+                if (newKey != null && !newKey.trim().isEmpty()) {
+                    // Ir à lista e substituir
+                    ArrayList<String> keys = catManager.getCategoriesMap().get(selectedCat);
+                    int index = keys.indexOf(selectedKey);
+                    if (index >= 0) {
+                        keys.set(index, newKey.trim());
+                        
+                        // Atualizar visualmente
+                        keywordModel.set(keywordList.getSelectedIndex(), newKey.trim());
+                        catManager.save();
+                    }
+                }
+            }
+        });
+
         dialog.add(leftPanel);
         dialog.add(rightPanel);
         dialog.setVisible(true);
+    }
+
+    private JXTreeTable buildGroupTreeTable() {
+        // 1. Preparar os dados (Agrupar)
+        Map<String, CategoryRow> mapRows = new HashMap<>();
+        CategoryManager catManager = CategoryManager.getInstance();
+
+        for (Transaction t : this.manager.getTransactions()) {
+            String catName = catManager.getCategoryFor(t.getDescription());
+            
+            mapRows.putIfAbsent(catName, new CategoryRow(catName));
+            
+            CategoryRow row = mapRows.get(catName);
+            row.transactions.add(t);
+            row.total += t.getValue();
+        }
+
+        List<CategoryRow> categoryList = new ArrayList<>(mapRows.values());
+        FinanceTreeModel model = new FinanceTreeModel(categoryList);
+        JXTreeTable treeTable = new JXTreeTable(model);
+
+        treeTable.setRowHeight(30);
+        treeTable.setFont(new Font("Arial", Font.PLAIN, 14));
+        treeTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 14));
+        
+        treeTable.setShowGrid(true, true); // Desenhar linhas horizontais e verticais
+        treeTable.setGridColor(Color.LIGHT_GRAY);
+        treeTable.expandAll();
+
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+        treeTable.getColumnModel().getColumn(2).setCellRenderer(centerRenderer);
+
+        return treeTable;
+    }
+
+    private void refreshCurrentView() {
+        if (this.manager == null || this.viewModeBox == null) return;
+
+        String selected = (String) this.viewModeBox.getSelectedItem();
+
+        if ("Group Mode".equals(selected)) {
+            JXTreeTable groupTable = buildGroupTreeTable();
+            this.dashboardScrollPane.setViewportView(groupTable);
+        } else {
+            updateDashboardUI();
+            this.dashboardScrollPane.setViewportView(this.transactionsTable);
+        }
     }
 
     public static void main(String[] args) {
@@ -696,4 +782,107 @@ public class Menu {
             menu.start();
         });
     }
+
+    // --- CLASSES INTERNAS AUXILIARES PARA A JXTreeTable ---
+
+    static class CategoryRow {
+        String name;
+        double total;
+        List<Transaction> transactions = new ArrayList<>();
+
+        public CategoryRow(String name) {
+            this.name = name;
+        }
+    }
+
+    static class FinanceTreeModel extends AbstractTreeTableModel {
+        private final List<CategoryRow> categories;
+        
+        private final String[] columnNames = {"Date / Category", "Description", "Type", "Value"};
+
+        public FinanceTreeModel(List<CategoryRow> categories) {
+            super(new Object()); // Raiz invisível
+            this.categories = categories;
+        }
+
+        @Override
+        public int getColumnCount() {
+            return columnNames.length;
+        }
+
+        @Override
+        public String getColumnName(int column) {
+            return columnNames[column];
+        }
+
+        @Override
+        public Object getChild(Object parent, int index) {
+            if (parent == root) {
+                return categories.get(index);
+            }
+            if (parent instanceof CategoryRow) {
+                return ((CategoryRow) parent).transactions.get(index);
+            }
+            return null;
+        }
+
+        @Override
+        public int getChildCount(Object parent) {
+            if (parent == root) {
+                return categories.size();
+            }
+            if (parent instanceof CategoryRow) {
+                return ((CategoryRow) parent).transactions.size();
+            }
+            return 0;
+        }
+
+        @Override
+        public boolean isLeaf(Object node) {
+            return node instanceof Transaction;
+        }
+
+        @Override
+        public int getIndexOfChild(Object parent, Object child) {
+            if (parent == root && child instanceof CategoryRow) {
+                return categories.indexOf(child);
+            }
+            if (parent instanceof CategoryRow && child instanceof Transaction) {
+                return ((CategoryRow) parent).transactions.indexOf(child);
+            }
+            return -1;
+        }
+
+        @Override
+        public Object getValueAt(Object node, int column) {
+            DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+            // LINHA DE CATEGORIA (PAI)
+            if (node instanceof CategoryRow) {
+                CategoryRow cat = (CategoryRow) node;
+                switch (column) {
+                    case 0: return cat.name; // O Nome aparece na primeira coluna (hierarquia)
+                    case 3: return String.format("%.2f €", cat.total);
+                    default: return "";
+                }
+            }
+
+            // LINHA DE TRANSAÇÃO (FILHO)
+            if (node instanceof Transaction) {
+                Transaction t = (Transaction) node;
+                String typeStr = t.getValue() >= 0 ? "Credit" : "Debit";
+
+                // --- ALTERAÇÃO: Mapeamento novo das colunas ---
+                switch (column) {
+                    case 0: return t.getDate().format(dtf); // Coluna 0 agora é Data
+                    case 1: return t.getDescription();      // Coluna 1 agora é Descrição
+                    case 2: return typeStr;
+                    case 3: return String.format("%.2f €", t.getValue());
+                    default: return "";
+                }
+            }
+            return "";
+        }
+    }
 }
+

@@ -37,11 +37,10 @@ public class CSVImporter {
                 double amount = Double.parseDouble(cleanAmount);
                 //int balanceAfterTransaction = Integer.parseInt(line[4]);
 
-                TransactionEnum type;
+                TransactionEnum type = TransactionEnum.DEBIT;
                 if(line[5].equals("Crédito")) {
                     type = TransactionEnum.CREDT;
                 }
-                type = TransactionEnum.DEBIT;
 
                 Transaction transaction;
                 if (line.length > 6) {

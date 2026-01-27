@@ -5,12 +5,13 @@ import java.util.HashMap;
 
 public class Registry {
     
+    private static final String DATA_PATH = System.getProperty("user.home") + File.separator + "Finance Manager Data" + File.separator;
     private static final String FILE_NAME = "finance_manager_config.manager";
     private HashMap<String, String> map; // key = name, value = file path
     private File file;
 
     public Registry() {
-        this.file = new File(System.getProperty("user.home") + File.separator + FILE_NAME);
+        this.file = new File(DATA_PATH + FILE_NAME);
         this.map = new HashMap<>();
         load(); // So it can load from memory
     }

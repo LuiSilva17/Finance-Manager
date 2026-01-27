@@ -90,4 +90,8 @@ public class CategoryManager implements Serializable {
         return instance;
     }
 
+    public HashMap<String, ArrayList<String>> getCategoriesMap() {
+        return this.categories;
+    }
+
 }

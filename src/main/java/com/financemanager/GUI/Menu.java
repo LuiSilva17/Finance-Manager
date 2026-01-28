@@ -14,6 +14,7 @@ import com.financemanager.Transaction;
 
 import java.awt.*;
 import java.io.*;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
@@ -447,22 +448,44 @@ public class Menu {
         rightActionPanel.add(btnCats);
         rightActionPanel.add(btnAddFile);
         
-
         topPanel.add(rightActionPanel, BorderLayout.EAST);
 
         dashboardPanel.add(topPanel, BorderLayout.NORTH);
 
+        // --- ALTERAÇÃO: Configuração da Tabela para Suportar Ordenação de Tipos Reais ---
         String[] columnNames = {"Date", "Description", "Type", "Value"};
         Object[][] data = {};
+        
+        // Model especial que diz à tabela que a coluna 0 é DATA e a 3 é DOUBLE
         DefaultTableModel model = new DefaultTableModel(data, columnNames) {
+            @Override
+            public Class<?> getColumnClass(int columnIndex) {
+                switch(columnIndex) {
+                    case 0: return LocalDate.class; // Para ordenar datas corretamente
+                    case 3: return Double.class;    // Para ordenar números corretamente
+                    default: return String.class;
+                }
+            }
             @Override public boolean isCellEditable(int row, int col) { return false; }
         };
+
         this.transactionsTable = new JTable(model);
         this.transactionsTable.setRowHeight(30);
         this.transactionsTable.setFont(new Font("Arial", Font.PLAIN, 14));
         this.transactionsTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 14));
-        this.transactionsTable.setShowGrid(true); // Grelha no Default Mode
+        this.transactionsTable.setShowGrid(true); 
         this.transactionsTable.setGridColor(Color.LIGHT_GRAY);
+        
+        // Ativar ordenação
+        this.transactionsTable.setAutoCreateRowSorter(true);
+
+        // Aplicar o Renderizador Inteligente (Pinta verde/vermelho e formata data)
+        this.transactionsTable.getColumnModel().getColumn(0).setCellRenderer(new SmartCellRenderer());
+        this.transactionsTable.getColumnModel().getColumn(3).setCellRenderer(new SmartCellRenderer());
+
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+        this.transactionsTable.getColumnModel().getColumn(2).setCellRenderer(centerRenderer);
         
         this.dashboardScrollPane = new JScrollPane(this.transactionsTable);
         dashboardPanel.add(this.dashboardScrollPane, BorderLayout.CENTER);
@@ -488,17 +511,16 @@ public class Menu {
         }
 
         DefaultTableModel model = (DefaultTableModel) transactionsTable.getModel();
-        
         model.setRowCount(0); 
 
-        DateTimeFormatter formatoData = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-
+        // Agora passamos os OBJETOS REAIS para a tabela conseguir ordenar
         for (Transaction t : this.manager.getTransactions()) {
+            String typeStr = t.getValue() >= 0 ? "Credit" : "Debit";
             model.addRow(new Object[]{
-                t.getDate().format(formatoData),
+                t.getDate(),       // Passa LocalDate (não String)
                 t.getDescription(),
-                t.getType(),
-                String.format("%.2f €", t.getValue())
+                typeStr,
+                t.getValue()       // Passa Double (não String)
             });
         }
     }
@@ -751,10 +773,20 @@ public class Menu {
         treeTable.setFont(new Font("Arial", Font.PLAIN, 14));
         treeTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 14));
         
-        treeTable.setShowGrid(true, true); // Desenhar linhas horizontais e verticais
+        treeTable.setShowGrid(true, true); 
         treeTable.setGridColor(Color.LIGHT_GRAY);
         treeTable.expandAll();
+        
+        // Ativar ordenação também no modo Group
+        treeTable.setAutoCreateRowSorter(true);
 
+        treeTable.expandAll();
+        treeTable.setAutoCreateRowSorter(true);
+
+        // Usar o Renderizador Inteligente também aqui para formatar a data e o valor
+        treeTable.getColumnModel().getColumn(3).setCellRenderer(new SmartCellRenderer());
+        
+        // Centralizar a coluna do Tipo (Opcional, mas tinhas pedido)
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(JLabel.CENTER);
         treeTable.getColumnModel().getColumn(2).setCellRenderer(centerRenderer);
@@ -811,6 +843,12 @@ public class Menu {
         }
 
         @Override
+        public Class<?> getColumnClass(int column) {
+            if (column == 3) return Double.class;
+            return String.class;
+        }
+
+        @Override
         public String getColumnName(int column) {
             return columnNames[column];
         }
@@ -857,32 +895,79 @@ public class Menu {
         public Object getValueAt(Object node, int column) {
             DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-            // LINHA DE CATEGORIA (PAI)
             if (node instanceof CategoryRow) {
                 CategoryRow cat = (CategoryRow) node;
                 switch (column) {
-                    case 0: return cat.name; // O Nome aparece na primeira coluna (hierarquia)
-                    case 3: return String.format("%.2f €", cat.total);
+                    case 0: return cat.name;
+                    case 3: return cat.total;
                     default: return "";
                 }
             }
 
-            // LINHA DE TRANSAÇÃO (FILHO)
             if (node instanceof Transaction) {
                 Transaction t = (Transaction) node;
                 String typeStr = t.getValue() >= 0 ? "Credit" : "Debit";
 
-                // --- ALTERAÇÃO: Mapeamento novo das colunas ---
                 switch (column) {
-                    case 0: return t.getDate().format(dtf); // Coluna 0 agora é Data
-                    case 1: return t.getDescription();      // Coluna 1 agora é Descrição
+                    case 0: return t.getDate().format(dtf);
+                    case 1: return t.getDescription();
                     case 2: return typeStr;
-                    case 3: return String.format("%.2f €", t.getValue());
+                    case 3: return t.getValue();
                     default: return "";
                 }
             }
             return "";
         }
     }
-}
 
+    static class SmartCellRenderer extends DefaultTableCellRenderer {
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            // 1. Reset básico
+            super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            setHorizontalAlignment(JLabel.CENTER);
+
+            // 2. Se for NÚMERO (Double)
+            if (value instanceof Double) {
+                double val = (Double) value;
+                setText(String.format("%.2f €", val));
+                updateColor(val, isSelected, table);
+            } 
+            // 3. Se for DATA (LocalDate)
+            else if (value instanceof LocalDate) {
+                setText(((LocalDate) value).format(dtf));
+                if (!isSelected) setForeground(Color.BLACK);
+            }
+            // 4. Se for TEXTO (String) - Rede de Segurança
+            else if (value instanceof String) {
+                String text = (String) value;
+                // Tenta limpar o texto "€" e espaços para ver se é número
+                try {
+                    String clean = text.replace("€", "").replace(",", ".").trim();
+                    double val = Double.parseDouble(clean);
+                    updateColor(val, isSelected, table);
+                } catch (NumberFormatException e) {
+                    // Não é número, fica a preto
+                    if (!isSelected) setForeground(Color.BLACK);
+                }
+            }
+            else {
+                if (!isSelected) setForeground(Color.BLACK);
+            }
+
+            return this;
+        }
+
+        // Método auxiliar para pintar Verde/Vermelho
+        private void updateColor(double val, boolean isSelected, JTable table) {
+            if (isSelected) {
+                setForeground(table.getSelectionForeground());
+            } else {
+                if (val >= 0) setForeground(new Color(0, 150, 0)); // Verde
+                else setForeground(Color.RED); // Vermelho
+            }
+        }
+    }
+}

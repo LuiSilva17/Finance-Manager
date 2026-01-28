@@ -1,21 +1,23 @@
-package com.financemanager;
+package com.financemanager.IO.importers;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
+import com.financemanager.model.Transaction;
+import com.financemanager.model.TransactionEnum;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvValidationException;
+import java.io.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 
-public class CSVImporter {
-    
-    /* This method only works for Credito Agricola since other banks might have 
+public class CreditoAgricolaParser implements BankStatementParser {
+
+    /* This method only works for Credito Agricola since other banks might have
     some other file format */
 
-    public static AccountManager importTransactions(File csvFile, String managerName) {
-        AccountManager manager = new AccountManager(managerName);
-        try (CSVReader reader = new CSVReader(new FileReader(csvFile));) {
+    @Override
+    public List<Transaction> parse(File csvFile) {
+        List<Transaction> list = new ArrayList<>();
+        try (CSVReader reader = new CSVReader(new FileReader(csvFile))) {
             for (int i = 0; i < 5; i++) {
                 reader.readNext();
             }
@@ -23,7 +25,7 @@ public class CSVImporter {
             String[] tempLine;
             while ((tempLine = reader.readNext()) != null) {
                 String[] line = divideVector(tempLine);
-                if(line.length == 0) {
+                if (line.length == 0) {
                     break;
                 }
 
@@ -38,7 +40,7 @@ public class CSVImporter {
                 //int balanceAfterTransaction = Integer.parseInt(line[4]);
 
                 TransactionEnum type = TransactionEnum.DEBIT;
-                if(line[5].equals("Crédito")) {
+                if (line[5].equals("Crédito")) {
                     type = TransactionEnum.CREDT;
                 }
 
@@ -51,12 +53,12 @@ public class CSVImporter {
                 } else {
                     transaction = new Transaction(date, description, amount, type);
                 }
-                manager.addTransaction(transaction);
+                list.add(transaction);
             }
         } catch (IOException | CsvValidationException e) {
             e.printStackTrace();
-        } 
-        return manager;
+        }
+        return list;
     }
 
     // This method only works for Credito Agricola
@@ -67,21 +69,26 @@ public class CSVImporter {
         if (vector[0].equals("")) {
             v1 = new String[0];
         } else {
-            for (int i = vector.length/2; i < vector.length; i++) {
+            for (int i = vector.length / 2; i < vector.length; i++) {
                 if (!vector[i].equals("")) {
                     hasExtraContent = true;
                 }
             }
-            
+
             if (hasExtraContent) {
                 return vector;
             } else {
-                v1 = new String[vector.length/2];
-                for (int i = 0; i < vector.length/2; i++) {
+                v1 = new String[vector.length / 2];
+                for (int i = 0; i < vector.length / 2; i++) {
                     v1[i] = vector[i];
                 }
             }
         }
         return v1;
+    }
+
+    @Override
+    public String getName() {
+        return "Credito Agricola";
     }
 }

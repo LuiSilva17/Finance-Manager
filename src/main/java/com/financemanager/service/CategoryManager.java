@@ -1,4 +1,4 @@
-package com.financemanager;
+package com.financemanager.service;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -6,10 +6,14 @@ import java.util.HashMap;
 import java.util.Locale.Category;
 
 public class CategoryManager implements Serializable {
-    
+
     private static final long serialVersionUID = 1L;
 
-    private static final String CONFIG_PATH = System.getProperty("user.home") + File.separator + "Finance Manager Data" + File.separator;
+    private static final String CONFIG_PATH =
+        System.getProperty("user.home") +
+        File.separator +
+        "Finance Manager Data" +
+        File.separator;
     private static final String FILE_NAME = "categories.config";
 
     private static CategoryManager instance = null;
@@ -38,7 +42,7 @@ public class CategoryManager implements Serializable {
                 k.add(keyword);
                 return;
             }
-            this.categories.put(name ,k = new ArrayList<>());
+            this.categories.put(name, k = new ArrayList<>());
             k.add(keyword);
             return;
         }
@@ -62,18 +66,26 @@ public class CategoryManager implements Serializable {
         if (!directory.exists()) {
             directory.mkdirs();
         }
-        
-        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(CONFIG_PATH + FILE_NAME))) {
+
+        try (
+            ObjectOutputStream out = new ObjectOutputStream(
+                new FileOutputStream(CONFIG_PATH + FILE_NAME)
+            )
+        ) {
             out.writeObject(getInstance());
         } catch (IOException e) {
             e.printStackTrace();
-        } 
+        }
     }
 
     public CategoryManager load() {
         File file = new File(CONFIG_PATH + FILE_NAME);
         if (file.exists()) {
-            try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(file))) {
+            try (
+                ObjectInputStream in = new ObjectInputStream(
+                    new FileInputStream(file)
+                )
+            ) {
                 instance = (CategoryManager) in.readObject();
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
@@ -93,5 +105,4 @@ public class CategoryManager implements Serializable {
     public HashMap<String, ArrayList<String>> getCategoriesMap() {
         return this.categories;
     }
-
 }

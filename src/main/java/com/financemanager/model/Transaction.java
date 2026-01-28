@@ -1,4 +1,4 @@
-package com.financemanager;
+package com.financemanager.model;
 
 import java.io.Serializable;
 import java.time.LocalDate;
@@ -51,4 +51,14 @@ public class Transaction implements Serializable {
     public String getBeneficiarysName() {
         return this.beneficiarysName;
     }
+    
+    /*@Override
+    public boolean equals() {
+        
+    }
+    
+    @Override
+    public int hashCode() {
+        
+    }*/
 }

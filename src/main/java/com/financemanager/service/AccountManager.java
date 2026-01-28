@@ -1,12 +1,15 @@
-package com.financemanager;
+package com.financemanager.service;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.List;
+
+import com.financemanager.model.Transaction;
 
 public class AccountManager implements Serializable {
-    
+
     private static final long serialVersionUID = 1L;
-    
+
     private ArrayList<Transaction> transactions;
     private String name;
     private String filePath;
@@ -28,6 +31,12 @@ public class AccountManager implements Serializable {
         return this.name;
     }
 
+    public void loadTransactions(List<Transaction> list) {
+        if (list != null) {
+            this.transactions.addAll(list);
+        }
+    }
+
     public void setName(String name) {
         this.name = name;
     }
@@ -42,7 +51,10 @@ public class AccountManager implements Serializable {
 
     public void saveToFile() {
         if (this.filePath == null) {
-            String dataPath = System.getProperty("user.home") + File.separator + "Finance Manager Data";
+            String dataPath =
+                System.getProperty("user.home") +
+                File.separator +
+                "Finance Manager Data";
             File directory = new File(dataPath);
 
             if (!directory.exists()) {
@@ -52,7 +64,11 @@ public class AccountManager implements Serializable {
             this.filePath = dataPath + File.separator + this.name + ".manager";
         }
 
-        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(this.filePath))) {
+        try (
+            ObjectOutputStream out = new ObjectOutputStream(
+                new FileOutputStream(this.filePath)
+            )
+        ) {
             out.writeObject(this);
             System.out.println("File saved to: " + this.filePath);
         } catch (IOException e) {
@@ -70,7 +86,11 @@ public class AccountManager implements Serializable {
 
     public static AccountManager loadFromFile(String path) {
         AccountManager manager = null;
-        try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(path))) {
+        try (
+            ObjectInputStream in = new ObjectInputStream(
+                new FileInputStream(path)
+            )
+        ) {
             manager = (AccountManager) in.readObject();
             manager.setFilePath(path);
         } catch (IOException | ClassNotFoundException e) {
@@ -82,7 +102,6 @@ public class AccountManager implements Serializable {
     public void merge(AccountManager tempManager) {
         if (tempManager != null && tempManager.getTransactions() != null) {
             this.transactions.addAll(tempManager.getTransactions());
-            
         }
     }
 }

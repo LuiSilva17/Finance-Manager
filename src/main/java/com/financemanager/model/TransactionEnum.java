@@ -1,4 +1,4 @@
-package com.financemanager;
+package com.financemanager.model;
 
 public enum TransactionEnum {
     DEBIT, CREDT

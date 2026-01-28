@@ -1,4 +1,4 @@
-package com.financemanager;
+package com.financemanager.data;
 
 import java.io.*;
 import java.util.HashMap;

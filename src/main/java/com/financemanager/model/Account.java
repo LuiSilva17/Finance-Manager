@@ -1,4 +1,4 @@
-package com;
+package com.financemanager.model;
 
 public class Account {
     

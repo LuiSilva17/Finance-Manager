@@ -15,6 +15,8 @@ public class AccountManager implements Serializable {
     private String name;
     private String filePath;
 
+    private String bankType;
+
     public AccountManager(String name) {
         this.name = name;
         this.transactions = new ArrayList<>();
@@ -52,10 +54,7 @@ public class AccountManager implements Serializable {
 
     public void saveToFile() {
         if (this.filePath == null) {
-            String dataPath =
-                System.getProperty("user.home") +
-                File.separator +
-                "Finance Manager Data";
+            String dataPath = System.getProperty("user.home") + File.separator + "Finance Manager Data";
             File directory = new File(dataPath);
 
             if (!directory.exists()) {
@@ -104,5 +103,30 @@ public class AccountManager implements Serializable {
         if (tempManager != null && tempManager.getTransactions() != null) {
             this.transactions.addAll(tempManager.getTransactions());
         }
+    }
+
+    // Method to be able to merge a new csv file without copying transactions
+    public void mergeTransactions(List<Transaction> newTransactions) {
+        ArrayList<Transaction> checkList = new ArrayList<>(this.transactions);
+        List<Transaction> toAdd = new ArrayList<>();
+
+        for (Transaction t : newTransactions) {
+            if (!checkList.remove(t)) {
+                toAdd.add(t);
+            }
+        }
+
+        if (!toAdd.isEmpty()) {
+            this.transactions.addAll(toAdd);
+            this.transactions.sort((t1, t2) -> t1.getDate().compareTo(t2.getDate()));
+        }
+    }
+
+    public String getBankType() {
+        return bankType;
+    }
+
+    public void setBankType(String bankType) {
+        this.bankType = bankType;
     }
 }

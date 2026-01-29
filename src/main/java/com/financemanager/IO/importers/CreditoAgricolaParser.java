@@ -1,5 +1,6 @@
 package com.financemanager.IO.importers;
 
+import com.financemanager.IO.FileLoader;
 import com.financemanager.model.Transaction;
 import com.financemanager.model.TransactionEnum;
 import com.opencsv.CSVReader;
@@ -12,51 +13,55 @@ import java.util.*;
 
 public class CreditoAgricolaParser implements BankStatementParser {
 
-    /* This method only works for Credito Agricola since other banks might have
-    some other file format */
-
     @Override
     public List<Transaction> parse(File csvFile) {
         List<Transaction> list = new ArrayList<>();
-        try (CSVReader reader = new CSVReader(new FileReader(csvFile))) {
-            for (int i = 0; i < 5; i++) {
-                reader.readNext();
+        try {
+            List<String> lines = FileLoader.readLines(csvFile, ',');
+            String csvContent = String.join("\n", lines);
+
+            try (CSVReader reader = new CSVReader(new StringReader(csvContent))) {
+                for (int i = 0; i < 5; i++) {
+                    reader.readNext();
+                }
+
+                String[] tempLine;
+                while ((tempLine = reader.readNext()) != null) {
+                    String[] line = divideVector(tempLine);
+                    if (line.length == 0) {
+                        break;
+                    }
+
+                    DateTimeFormatter format = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+                    LocalDate date = LocalDate.parse(line[0], format);
+
+                    String description = line[2];
+
+                    String cleanAmount = line[3].replace("€", "").trim(); // remove the Euro Symbol
+                    cleanAmount = cleanAmount.replace(".", "").replace(",", "."); // Change from 12,50 to 12.50
+                    BigDecimal amount = new BigDecimal(cleanAmount);
+                    //BigDecimal balanceAfterTransaction = Integer.parseInt(line[4]);
+
+                    TransactionEnum type = TransactionEnum.DEBIT;
+                    if (line[5].equals("Crédito")) {
+                        type = TransactionEnum.CREDIT;
+                    }
+
+                    Transaction transaction;
+                    if (line.length > 6) {
+                        String payersName = line[6];
+                        // String payersIBAN = line[7];
+                        String beneficiarysName = line[8];
+                        transaction = new Transaction(date, description, amount, type, payersName, beneficiarysName);
+                    } else {
+                        transaction = new Transaction(date, description, amount, type);
+                    }
+                    list.add(transaction);
+                }
+            } catch (IOException | CsvValidationException e) {
+                e.printStackTrace();
             }
-
-            String[] tempLine;
-            while ((tempLine = reader.readNext()) != null) {
-                String[] line = divideVector(tempLine);
-                if (line.length == 0) {
-                    break;
-                }
-
-                DateTimeFormatter format = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-                LocalDate date = LocalDate.parse(line[0], format);
-
-                String description = line[2];
-
-                String cleanAmount = line[3].replace("€", "").trim(); // remove the Euro Symbol
-                cleanAmount = cleanAmount.replace(".", "").replace(",", "."); // Change from 12,50 to 12.50
-                BigDecimal amount = new BigDecimal(cleanAmount);
-                //BigDecimal balanceAfterTransaction = Integer.parseInt(line[4]);
-
-                TransactionEnum type = TransactionEnum.DEBIT;
-                if (line[5].equals("Crédito")) {
-                    type = TransactionEnum.CREDIT;
-                }
-
-                Transaction transaction;
-                if (line.length > 6) {
-                    String payersName = line[6];
-                    // String payersIBAN = line[7];
-                    String beneficiarysName = line[8];
-                    transaction = new Transaction(date, description, amount, type, payersName, beneficiarysName);
-                } else {
-                    transaction = new Transaction(date, description, amount, type);
-                }
-                list.add(transaction);
-            }
-        } catch (IOException | CsvValidationException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return list;

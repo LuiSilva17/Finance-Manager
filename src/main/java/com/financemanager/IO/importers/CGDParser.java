@@ -1,5 +1,6 @@
 package com.financemanager.IO.importers;
 
+import com.financemanager.IO.FileLoader;
 import com.financemanager.model.Transaction;
 import com.financemanager.model.TransactionEnum;
 
@@ -26,37 +27,43 @@ public class CGDParser implements BankStatementParser {
     @Override
     public List<Transaction> parse(File csvFile) {
         List<Transaction> list = new ArrayList<>();
-        CSVParser csvParser = new CSVParserBuilder().withSeparator(';').build();
-        try (CSVReader reader = new CSVReaderBuilder(new FileReader(csvFile)).withCSVParser(csvParser).build();) {
+        try {
+            List<String> lines = FileLoader.readLines(csvFile, ';');
+            String csvContent = String.join("\n", lines);
+            CSVParser csvParser = new CSVParserBuilder().withSeparator(';').build();
+            try (CSVReader reader = new CSVReaderBuilder(new StringReader(csvContent)).withCSVParser(csvParser).build();) {
 
-            for (int i = 0; i < 8; i++) {
-                reader.readNext();
-            }
-
-            String[] line;
-            while ((line = reader.readNext()) != null) {
-                if (line[0].trim().isEmpty()) {
-                    break;
+                for (int i = 0; i < 8; i++) {
+                    reader.readNext();
                 }
 
-                String dateStr = line[1].replace("-", "/");
-                DateTimeFormatter format = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-                LocalDate date = LocalDate.parse(dateStr, format);
-                
-                String description = line[2];
-                TransactionEnum type;
-                BigDecimal value;
-                if (!line[3].trim().isEmpty()) {
-                    type = TransactionEnum.DEBIT;
-                    value = new BigDecimal(line[3].replace(".", "").replace(",", ".")).negate();
-                } else {
-                    type = TransactionEnum.CREDIT;
-                    value = new BigDecimal(line[4].replace(".", "").replace(",", "."));
+                String[] line;
+                while ((line = reader.readNext()) != null) {
+                    if (line[0].trim().isEmpty()) {
+                        break;
+                    }
+
+                    String dateStr = line[1].replace("-", "/");
+                    DateTimeFormatter format = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+                    LocalDate date = LocalDate.parse(dateStr, format);
+                    
+                    String description = line[2];
+                    TransactionEnum type;
+                    BigDecimal value;
+                    if (!line[3].trim().isEmpty()) {
+                        type = TransactionEnum.DEBIT;
+                        value = new BigDecimal(line[3].replace(".", "").replace(",", ".")).negate();
+                    } else {
+                        type = TransactionEnum.CREDIT;
+                        value = new BigDecimal(line[4].replace(".", "").replace(",", "."));
+                    }
+                    Transaction transaction = new Transaction(date, description, value, type);
+                    list.add(transaction);
                 }
-                Transaction transaction = new Transaction(date, description, value, type);
-                list.add(transaction);
+            } catch (IOException | CsvValidationException e) {
+                e.printStackTrace();
             }
-        } catch (IOException | CsvValidationException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return list;

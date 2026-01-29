@@ -232,6 +232,11 @@ public class Menu {
         btnSearch.setToolTipText("Search file");
         btnSearch.addActionListener(e -> {
             JFileChooser fileChooser = new JFileChooser();
+            
+            javax.swing.filechooser.FileNameExtensionFilter filter = 
+                new javax.swing.filechooser.FileNameExtensionFilter("Bank Statements (.xlsx, .csv)", "xlsx", "csv");
+            fileChooser.setFileFilter(filter);
+
             int option = fileChooser.showOpenDialog(frame);
             if (option == JFileChooser.APPROVE_OPTION) {
                 txtPath.setText(
@@ -243,8 +248,6 @@ public class Menu {
         JButton btnCreateManager = new JButton("Create Manager");
         btnCreateManager.setFont(new Font("Arial", Font.BOLD, 18));
         btnCreateManager.setPreferredSize(new Dimension(0, 60));
-        
-        // --- 2. Lógica Atualizada do Botão Create ---
         btnCreateManager.addActionListener(e -> {
             String path = txtPath.getText();
             if (path.equals("No file selected...")) {
@@ -255,9 +258,20 @@ public class Menu {
                 return;
             }
 
+            String lowerPath = path.toLowerCase(); // Converter para minusculas para não falhar com .XLSX
+            if (!lowerPath.endsWith(".xlsx") && !lowerPath.endsWith(".csv")) {
+                JOptionPane.showMessageDialog(
+                    frame, 
+                    "Invalid file format!\nPlease select a valid Bank Statement file (.xlsx or .csv).",
+                    "Invalid Format",
+                    JOptionPane.ERROR_MESSAGE
+                );
+                return; // Pára tudo, não deixa avançar
+            }
+
             String selectedBank = showBankSelectionDialog();
 
-            // Se for null, o utilizador cancelou
+            // utilizador cancelou
             if (selectedBank == null) {
                 return;
             }

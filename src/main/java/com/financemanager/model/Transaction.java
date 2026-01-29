@@ -3,6 +3,7 @@ package com.financemanager.model;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Objects;
 
 public class Transaction implements Serializable {
     
@@ -55,13 +56,30 @@ public class Transaction implements Serializable {
         return this.beneficiarysName;
     }
     
-    /*@Override
-    public boolean equals() {
-        
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+
+        if (o == null || o.getClass() != this.getClass()) {
+            return false;
+        }
+
+        Transaction that = (Transaction) o;
+
+        if (this.getDate().equals(that.getDate())) {
+            if (this.getDescription().equals(that.getDescription())) {
+                if (this.getValue().compareTo(that.getValue()) == 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
     
     @Override
     public int hashCode() {
-        
-    }*/
+        return Objects.hash(date, description, value);
+    }
 }

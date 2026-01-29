@@ -198,7 +198,6 @@ public class Menu {
                     break;
                 case "CGD":
                     parser = new CGDParser();
-                    System.out.println("Ainda não implementado");
                     break;
                 default:
                     parser = new CreditoAgricolaParser(); 
@@ -220,6 +219,8 @@ public class Menu {
                 if (parser != null) {
                     List<Transaction> transactions = parser.parse(f);
                     AccountManager newManager = new AccountManager(trimmedName);
+
+                    newManager.setBankType(selectedBank);
                     
                     newManager.loadTransactions(transactions);
                     newManager.saveToFile();
@@ -492,22 +493,61 @@ public class Menu {
         btnAddFile.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
         btnAddFile.addActionListener(e -> {
+            if (this.manager.getBankType() == null) {
+                String[] bankOptions = { "Crédito Agrícola", "CGD", "Santander", "Novo Banco" };
+                String selectedBank = (String) JOptionPane.showInputDialog(
+                    frame,
+                    "This Manager has no Bank Type assigned (Old Version).\nPlease select the bank to fix this:",
+                    "Fix Legacy Manager",
+                    JOptionPane.QUESTION_MESSAGE,
+                    null,
+                    bankOptions,
+                    bankOptions[0]
+                );
+
+                if (selectedBank == null) {
+                    return;
+                }
+                this.manager.setBankType(selectedBank);
+                this.manager.saveToFile();
+            }
+            
             JFileChooser fileChooser = new JFileChooser();
             int option = fileChooser.showOpenDialog(frame);
 
             if (option == JFileChooser.APPROVE_OPTION) {
                 File selectedFile = fileChooser.getSelectedFile();
+                
+                BankStatementParser parser = null;
+                String bankType = this.manager.getBankType(); // Agora já não é null!
 
-                BankStatementParser parser = new CreditoAgricolaParser();
-                List<Transaction> transactions = parser.parse(selectedFile);
+                switch (bankType) {
+                    case "Crédito Agrícola":
+                        parser = new CreditoAgricolaParser();
+                        break;
+                    case "CGD":
+                        parser = new CGDParser();
+                        break;
+                    default:
+                        parser = new CreditoAgricolaParser();
+                        break;
+                }
 
-                AccountManager tempManager = new AccountManager("Temp");
-                tempManager.loadTransactions(transactions);
-                if (tempManager != null && this.manager != null) {
-                    this.manager.merge(tempManager);
+                try {
+                    List<Transaction> newTransactions = parser.parse(selectedFile);
+                    this.manager.mergeTransactions(newTransactions);
                     this.manager.saveToFile();
-                    refreshCurrentView(); 
-                    JOptionPane.showMessageDialog(frame, "Transactions added successfully!");
+                    
+                    refreshCurrentView();
+                    JOptionPane.showMessageDialog(frame, "Success! Transactions added.");
+
+                } catch (Exception ex) {
+                    System.err.println(ex.getMessage());
+                    JOptionPane.showMessageDialog(frame, 
+                        "Error: Failed to read file.\n" +
+                        "Are you sure this is a '" + bankType + "' file?", 
+                        "Invalid File Format", 
+                        JOptionPane.ERROR_MESSAGE);
                 }
             }
         });
@@ -564,15 +604,10 @@ public class Menu {
         this.transactionsTable.setAutoCreateRowSorter(true);
 
         // Aplicar o Renderizador Inteligente (Pinta verde/vermelho e formata data)
-        this.transactionsTable.getColumnModel()
-            .getColumn(0)
-            .setCellRenderer(new SmartCellRenderer());
-        this.transactionsTable.getColumnModel()
-            .getColumn(3)
-            .setCellRenderer(new SmartCellRenderer());
+        this.transactionsTable.getColumnModel().getColumn(0).setCellRenderer(new SmartCellRenderer());
+        this.transactionsTable.getColumnModel().getColumn(3).setCellRenderer(new SmartCellRenderer());
 
-        DefaultTableCellRenderer centerRenderer =
-            new DefaultTableCellRenderer();
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(JLabel.CENTER);
         this.transactionsTable.getColumnModel().getColumn(2).setCellRenderer(centerRenderer);
         
@@ -665,17 +700,18 @@ public class Menu {
 
     private void openCategoryManager() {
         JDialog dialog = new JDialog(frame, "Manage Categories", true);
-        dialog.setSize(700, 500);
+        dialog.setSize(750, 500);
         dialog.setResizable(false);
         dialog.setLayout(new GridLayout(1, 2, 10, 0));
         dialog.setLocationRelativeTo(frame);
 
         CategoryManager catManager = CategoryManager.getInstance();
+        catManager.syncOrder(); 
 
         DefaultListModel<String> categoryModel = new DefaultListModel<>();
         DefaultListModel<String> keywordModel = new DefaultListModel<>();
 
-        for (String cat : catManager.getCategoriesMap().keySet()) {
+        for (String cat : catManager.getOrderedCategories()) {
             categoryModel.addElement(cat);
         }
 
@@ -686,15 +722,17 @@ public class Menu {
         leftPanel.setBorder(BorderFactory.createTitledBorder("Groups"));
 
         JPanel leftButtons = new JPanel(new FlowLayout());
-        JButton btnAddCat = new JButton("Add Category");
-        JButton btnEditCat = new JButton("✎");
-        JButton btnRemCat = new JButton("Remove Category");
-        JButton btnInfo = new JButton("ℹ");
+        JButton btnAddCat = new JButton("Add");
+        JButton btnEditCat = new JButton("Edit");
+        JButton btnRemCat = new JButton("Remove");
+        JButton btnUp = new JButton("⬆");
+        JButton btnDown = new JButton("⬇");
 
         leftButtons.add(btnAddCat);
         leftButtons.add(btnEditCat);
         leftButtons.add(btnRemCat);
-        leftButtons.add(btnInfo);
+        leftButtons.add(btnUp);
+        leftButtons.add(btnDown);
 
         leftPanel.add(new JScrollPane(categoryList), BorderLayout.CENTER);
         leftPanel.add(leftButtons, BorderLayout.SOUTH);
@@ -703,13 +741,15 @@ public class Menu {
         rightPanel.setBorder(BorderFactory.createTitledBorder("Keywords"));
 
         JPanel rightButtons = new JPanel(new FlowLayout());
-        JButton btnAddKey = new JButton("Add Keyword");
+        JButton btnAddKey = new JButton("Add");
         JButton btnEditKey = new JButton("Edit");
-        JButton btnRemKey = new JButton("Remove Keyword");
+        JButton btnRemKey = new JButton("Remove");
+        JButton btnInfo = new JButton("ℹ");
 
         rightButtons.add(btnAddKey);
         rightButtons.add(btnEditKey);
         rightButtons.add(btnRemKey);
+        rightButtons.add(btnInfo);
 
         rightPanel.add(new JScrollPane(keywordList), BorderLayout.CENTER);
         rightPanel.add(rightButtons, BorderLayout.SOUTH);
@@ -720,9 +760,7 @@ public class Menu {
                 keywordModel.clear();
 
                 if (selectedCat != null) {
-                    ArrayList<String> keys = catManager
-                        .getCategoriesMap()
-                        .get(selectedCat);
+                    ArrayList<String> keys = catManager.getCategoriesMap().get(selectedCat);
                     if (keys != null) {
                         for (String k : keys) {
                             keywordModel.addElement(k);
@@ -733,10 +771,7 @@ public class Menu {
         });
 
         btnAddCat.addActionListener(e -> {
-            String name = JOptionPane.showInputDialog(
-                dialog,
-                "New Group Name:"
-            );
+            String name = JOptionPane.showInputDialog(dialog, "New Group Name:");
             if (name != null && !name.trim().isEmpty()) {
                 String finalName = name.trim();
                 if (!catManager.getCategoriesMap().containsKey(finalName)) {
@@ -762,27 +797,50 @@ public class Menu {
             }
         });
 
+        btnUp.addActionListener(e -> {
+            int index = categoryList.getSelectedIndex();
+            String selected = categoryList.getSelectedValue();
+            
+            if (index > 0 && selected != null) {
+                catManager.moveCategoryUp(selected);
+                
+                String temp = categoryModel.get(index - 1);
+                categoryModel.set(index - 1, selected);
+                categoryModel.set(index, temp);
+                
+                categoryList.setSelectedIndex(index - 1);
+                catManager.save();
+            }
+        });
+
+        btnDown.addActionListener(e -> {
+            int index = categoryList.getSelectedIndex();
+            String selected = categoryList.getSelectedValue();
+            
+            if (index >= 0 && index < categoryModel.getSize() - 1 && selected != null) {
+                catManager.moveCategoryDown(selected);
+
+                String temp = categoryModel.get(index + 1);
+                categoryModel.set(index + 1, selected);
+                categoryModel.set(index, temp);
+                
+                categoryList.setSelectedIndex(index + 1);
+                catManager.save();
+            }
+        });
+
         btnAddKey.addActionListener(e -> {
             String selectedCat = categoryList.getSelectedValue();
             if (selectedCat == null) {
-                JOptionPane.showMessageDialog(
-                    dialog,
-                    "Select a Group on the left first!"
-                );
+                JOptionPane.showMessageDialog(dialog, "Select a Group on the left first!");
                 return;
             }
 
-            String key = JOptionPane.showInputDialog(
-                dialog,
-                "Add keyword for " + selectedCat + ":"
-            );
+            String key = JOptionPane.showInputDialog(dialog, "Add keyword for " + selectedCat + ":");
             if (key != null && !key.trim().isEmpty()) {
                 catManager.addKeyword(selectedCat, key.trim());
-
                 keywordModel.clear();
-                for (String k : catManager
-                    .getCategoriesMap()
-                    .get(selectedCat)) {
+                for (String k : catManager.getCategoriesMap().get(selectedCat)) {
                     keywordModel.addElement(k);
                 }
                 catManager.save();
@@ -800,16 +858,6 @@ public class Menu {
             }
         });
 
-        btnInfo.addActionListener(e -> {
-            String message = "How to use Keywords:\n\n" +
-                             "1. Create a Group (e.g., 'Supermarket').\n" +
-                             "2. Select the group.\n" +
-                             "3. Add unique words found in your bank statement description.\n" +
-                             "   Example: If the statement says 'VISA PINGO DOCE 234', add 'PINGO DOCE'.\n\n" +
-                             "The program will automatically link transactions containing these words to the group.";
-            JOptionPane.showMessageDialog(dialog, message, "Help", JOptionPane.INFORMATION_MESSAGE);
-        });
-
         btnEditCat.addActionListener(e -> {
             String selected = categoryList.getSelectedValue();
             if (selected != null) {
@@ -819,9 +867,9 @@ public class Menu {
                     ArrayList<String> keys = catManager.getCategoriesMap().get(selected);
                     catManager.getCategoriesMap().remove(selected);
                     catManager.getCategoriesMap().put(finalName, keys);
-
-                    categoryModel.removeElement(selected);
-                    categoryModel.addElement(finalName);
+                    
+                    int index = categoryList.getSelectedIndex();
+                    categoryModel.set(index, finalName);
                     catManager.save();
                 }
             }
@@ -834,23 +882,19 @@ public class Menu {
             if (selectedCat != null && selectedKey != null) {
                 String newKey = JOptionPane.showInputDialog(dialog, "Rename keyword:", selectedKey);
                 if (newKey != null && !newKey.trim().isEmpty()) {
-                    // Ir à lista e substituir
-                    ArrayList<String> keys = catManager
-                        .getCategoriesMap()
-                        .get(selectedCat);
+                    ArrayList<String> keys = catManager.getCategoriesMap().get(selectedCat);
                     int index = keys.indexOf(selectedKey);
                     if (index >= 0) {
                         keys.set(index, newKey.trim());
-
-                        // Atualizar visualmente
-                        keywordModel.set(
-                            keywordList.getSelectedIndex(),
-                            newKey.trim()
-                        );
+                        keywordModel.set(keywordList.getSelectedIndex(), newKey.trim());
                         catManager.save();
                     }
                 }
             }
+        });
+
+        btnInfo.addActionListener(e -> {
+             JOptionPane.showMessageDialog(dialog, "Select a category and add keywords found in bank descriptions.", "Help", JOptionPane.INFORMATION_MESSAGE);
         });
 
         dialog.add(leftPanel);
@@ -859,47 +903,54 @@ public class Menu {
     }
 
     private JXTreeTable buildGroupTreeTable() {
-        // 1. Preparar os dados (Agrupar)
         Map<String, CategoryRow> mapRows = new HashMap<>();
         CategoryManager catManager = CategoryManager.getInstance();
 
         for (Transaction t : this.manager.getTransactions()) {
             String catName = catManager.getCategoryFor(t.getDescription());
-
             mapRows.putIfAbsent(catName, new CategoryRow(catName));
-
             CategoryRow row = mapRows.get(catName);
             row.transactions.add(t);
             row.total = row.total.add(t.getValue());
         }
 
-        List<CategoryRow> categoryList = new ArrayList<>(mapRows.values());
-        FinanceTreeModel model = new FinanceTreeModel(categoryList);
+        List<CategoryRow> sortedList = new ArrayList<>();
+        List<String> order = catManager.getOrderedCategories();
+
+        if (order != null) {
+            for (String name : order) {
+                if (name.equals("Uncategorized") || name.equals("Sem Categoria")) continue;
+                CategoryRow row = mapRows.get(name);
+                if (row != null) {
+                    sortedList.add(row);
+                    mapRows.remove(name);
+                }
+            }
+        }
+
+        List<String> remainingKeys = new ArrayList<>(mapRows.keySet());
+        for (String key : remainingKeys) {
+            if (key.equals("Uncategorized") || key.equals("Sem Categoria")) continue;
+            sortedList.add(mapRows.get(key));
+        }
+
+        if (mapRows.containsKey("Uncategorized")) sortedList.add(mapRows.get("Uncategorized"));
+        if (mapRows.containsKey("Sem Categoria")) sortedList.add(mapRows.get("Sem Categoria"));
+
+        FinanceTreeModel model = new FinanceTreeModel(sortedList);
         JXTreeTable treeTable = new JXTreeTable(model);
 
         treeTable.setRowHeight(30);
         treeTable.setFont(new Font("Arial", Font.PLAIN, 14));
         treeTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 14));
-
         treeTable.setShowGrid(true, true);
         treeTable.setGridColor(Color.LIGHT_GRAY);
         treeTable.expandAll();
-
-        // Ativar ordenação também no modo Group
         treeTable.setAutoCreateRowSorter(true);
 
-        treeTable.expandAll();
-        treeTable.setAutoCreateRowSorter(true);
+        treeTable.getColumnModel().getColumn(3).setCellRenderer(new SmartCellRenderer());
 
-        // Usar o Renderizador Inteligente também aqui para formatar a data e o valor
-        treeTable
-            .getColumnModel()
-            .getColumn(3)
-            .setCellRenderer(new SmartCellRenderer());
-
-        // Centralizar a coluna do Tipo (Opcional, mas tinhas pedido)
-        DefaultTableCellRenderer centerRenderer =
-            new DefaultTableCellRenderer();
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(JLabel.CENTER);
         treeTable.getColumnModel().getColumn(2).setCellRenderer(centerRenderer);
 
@@ -907,7 +958,10 @@ public class Menu {
     }
 
     private void refreshCurrentView() {
-        if (this.manager == null || this.viewModeBox == null) return;
+        if (this.manager == null || this.viewModeBox == null) {
+            return;
+        }
+        updateDashboardUI();
 
         String selected = (String) this.viewModeBox.getSelectedItem();
 
@@ -915,7 +969,6 @@ public class Menu {
             JXTreeTable groupTable = buildGroupTreeTable();
             this.dashboardScrollPane.setViewportView(groupTable);
         } else {
-            updateDashboardUI();
             this.dashboardScrollPane.setViewportView(this.transactionsTable);
         }
     }

@@ -38,7 +38,7 @@ public class CreditoAgricolaParser implements BankStatementParser {
                 String cleanAmount = line[3].replace("€", "").trim(); // remove the Euro Symbol
                 cleanAmount = cleanAmount.replace(".", "").replace(",", "."); // Change from 12,50 to 12.50
                 BigDecimal amount = new BigDecimal(cleanAmount);
-                //int balanceAfterTransaction = Integer.parseInt(line[4]);
+                //BigDecimal balanceAfterTransaction = Integer.parseInt(line[4]);
 
                 TransactionEnum type = TransactionEnum.DEBIT;
                 if (line[5].equals("Crédito")) {

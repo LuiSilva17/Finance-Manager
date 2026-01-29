@@ -1,6 +1,7 @@
 package com.financemanager.service;
 
 import java.io.*;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,10 +42,10 @@ public class AccountManager implements Serializable {
         this.name = name;
     }
 
-    public double getCurrentBalance() {
-        double total = 0.0;
+    public BigDecimal getCurrentBalance() {
+        BigDecimal total = BigDecimal.ZERO;
         for (Transaction t : transactions) {
-            total += t.getValue();
+            total = total.add(t.getValue());
         }
         return total;
     }

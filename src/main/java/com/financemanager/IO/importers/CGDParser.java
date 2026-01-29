@@ -1,8 +1,10 @@
 package com.financemanager.IO.importers;
 
 import com.financemanager.model.Transaction;
+import com.financemanager.model.TransactionEnum;
 
 import java.io.*;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -33,20 +35,30 @@ public class CGDParser implements BankStatementParser {
 
             String[] line;
             while ((line = reader.readNext()) != null) {
-                if (line[0].equals("")) {
+                if (line[0].trim().isEmpty()) {
                     break;
                 }
 
+                String dateStr = line[1].replace("-", "/");
                 DateTimeFormatter format = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-                LocalDate date = LocalDate.parse(line[1], format);
+                LocalDate date = LocalDate.parse(dateStr, format);
                 
                 String description = line[2];
+                TransactionEnum type;
+                BigDecimal value;
+                if (!line[3].trim().isEmpty()) {
+                    type = TransactionEnum.DEBIT;
+                    value = new BigDecimal(line[3].replace(".", "").replace(",", ".")).negate();
+                } else {
+                    type = TransactionEnum.CREDIT;
+                    value = new BigDecimal(line[4].replace(".", "").replace(",", "."));
+                }
+                Transaction transaction = new Transaction(date, description, value, type);
+                list.add(transaction);
             }
         } catch (IOException | CsvValidationException e) {
             e.printStackTrace();
         }
-
-
         return list;
     }
     

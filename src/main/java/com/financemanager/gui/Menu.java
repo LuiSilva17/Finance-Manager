@@ -1,6 +1,7 @@
 package com.financemanager.gui;
 
 import com.financemanager.IO.importers.BankStatementParser;
+import com.financemanager.IO.importers.CGDParser;
 import com.financemanager.IO.importers.CreditoAgricolaParser;
 import com.financemanager.data.Registry;
 import com.financemanager.model.Transaction;
@@ -9,6 +10,7 @@ import com.financemanager.service.CategoryManager;
 
 import java.awt.*;
 import java.io.*;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -170,6 +172,39 @@ public class Menu {
                 );
                 return;
             }
+
+            String[] bankOptions = { "Crédito Agrícola", "CGD", "Santander", "Novo Banco" };
+
+            String selectedBank = (String) JOptionPane.showInputDialog(
+                null,
+                "What bank is this extract from?",
+                "Select Bank",
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                bankOptions,
+                bankOptions[0]
+            );
+
+            // Operation was cancelled
+            if (selectedBank == null) {
+                return;
+            }
+
+            BankStatementParser parser = null;
+
+            switch (selectedBank) {
+                case "Crédito Agrícola":
+                    parser = new CreditoAgricolaParser();
+                    break;
+                case "CGD":
+                    parser = new CGDParser();
+                    System.out.println("Ainda não implementado");
+                    break;
+                default:
+                    parser = new CreditoAgricolaParser(); 
+                    break;
+            }
+            
             File f = new File(path);
             String fileName = f.getName();
             int index = fileName.lastIndexOf(".");
@@ -181,20 +216,24 @@ public class Menu {
                 trimmedName = fileName;
             }
 
-            BankStatementParser parser = new CreditoAgricolaParser();
-            List<Transaction> transactions = parser.parse(f);
+            try {
+                if (parser != null) {
+                    List<Transaction> transactions = parser.parse(f);
+                    AccountManager newManager = new AccountManager(trimmedName);
+                    
+                    newManager.loadTransactions(transactions);
+                    newManager.saveToFile();
 
-            AccountManager newManager = new AccountManager(trimmedName);
-            newManager.loadTransactions(transactions);
-            newManager.saveToFile();    
-            if (newManager.getFilePath() != null) {
-                registry.registerManager(trimmedName, newManager.getFilePath());
-
-                this.manager = newManager;
-
-                refreshCurrentView();
-
-                cardLayout.show(mainPanel, "Dashboard");
+                    if (newManager.getFilePath() != null) {
+                        registry.registerManager(trimmedName, newManager.getFilePath());
+                        this.manager = newManager;
+                        refreshCurrentView();
+                        cardLayout.show(mainPanel, "Dashboard");
+                    }
+                }
+            } catch (Exception excep) {
+                JOptionPane.showMessageDialog(frame, "Error parsing file: " + excep.getMessage());
+                excep.printStackTrace();
             }
         });
 
@@ -550,11 +589,11 @@ public class Menu {
 
         this.bankNameLabel.setText(this.manager.getName());
 
-        double saldo = this.manager.getCurrentBalance();
+        BigDecimal saldo = this.manager.getCurrentBalance();
 
         balanceLabel.setText(String.format("%.2f €", saldo));
 
-        if (saldo >= 0) {
+        if (saldo.compareTo(BigDecimal.ZERO)  >= 0) {
             balanceLabel.setForeground(Color.GREEN.darker());
         } else {
             balanceLabel.setForeground(Color.RED);
@@ -563,9 +602,8 @@ public class Menu {
         DefaultTableModel model = (DefaultTableModel) transactionsTable.getModel();
         model.setRowCount(0); 
 
-        // Agora passamos os OBJETOS REAIS para a tabela conseguir ordenar
         for (Transaction t : this.manager.getTransactions()) {
-            String typeStr = t.getValue() >= 0 ? "Credit" : "Debit";
+            String typeStr = t.getValue().compareTo(BigDecimal.ZERO) >= 0 ? "Credit" : "Debit";
             model.addRow(
                 new Object[] {
                     t.getDate(), // Passa LocalDate (não String)
@@ -832,7 +870,7 @@ public class Menu {
 
             CategoryRow row = mapRows.get(catName);
             row.transactions.add(t);
-            row.total += t.getValue();
+            row.total = row.total.add(t.getValue());
         }
 
         List<CategoryRow> categoryList = new ArrayList<>(mapRows.values());
@@ -894,7 +932,7 @@ public class Menu {
     static class CategoryRow {
 
         String name;
-        double total;
+        BigDecimal total = BigDecimal.ZERO;
         List<Transaction> transactions = new ArrayList<>();
 
         public CategoryRow(String name) {
@@ -990,7 +1028,7 @@ public class Menu {
 
             if (node instanceof Transaction) {
                 Transaction t = (Transaction) node;
-                String typeStr = t.getValue() >= 0 ? "Credit" : "Debit";
+                String typeStr = t.getValue().compareTo(BigDecimal.ZERO) >= 0 ? "Credit" : "Debit";
 
                 switch (column) {
                     case 0:

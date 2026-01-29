@@ -5,6 +5,7 @@ import com.financemanager.model.TransactionEnum;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvValidationException;
 import java.io.*;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -36,12 +37,12 @@ public class CreditoAgricolaParser implements BankStatementParser {
 
                 String cleanAmount = line[3].replace("€", "").trim(); // remove the Euro Symbol
                 cleanAmount = cleanAmount.replace(".", "").replace(",", "."); // Change from 12,50 to 12.50
-                double amount = Double.parseDouble(cleanAmount);
+                BigDecimal amount = new BigDecimal(cleanAmount);
                 //int balanceAfterTransaction = Integer.parseInt(line[4]);
 
                 TransactionEnum type = TransactionEnum.DEBIT;
                 if (line[5].equals("Crédito")) {
-                    type = TransactionEnum.CREDT;
+                    type = TransactionEnum.CREDIT;
                 }
 
                 Transaction transaction;

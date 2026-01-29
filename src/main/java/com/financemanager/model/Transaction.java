@@ -1,25 +1,28 @@
 package com.financemanager.model;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public class Transaction implements Serializable {
     
+    private static final long serialVersionUID = 1L;
+
     private LocalDate date;
     private String description;
-    private double value;
+    private BigDecimal value;
     private TransactionEnum type;
     private String payersName;
     private String beneficiarysName;
 
-    public Transaction(LocalDate date, String description, double value, TransactionEnum type) {
+    public Transaction(LocalDate date, String description, BigDecimal value, TransactionEnum type) {
         this.date = date;
         this.description = description;
         this.value = value;
         this.type = type;
     }
 
-    public Transaction(LocalDate date, String description, double value, TransactionEnum type, String payersName, String beneficiarysName) {
+    public Transaction(LocalDate date, String description, BigDecimal value, TransactionEnum type, String payersName, String beneficiarysName) {
         this.date = date;
         this.description = description;
         this.value = value;
@@ -36,7 +39,7 @@ public class Transaction implements Serializable {
         return this.description;
     }
 
-    public double getValue() {
+    public BigDecimal getValue() {
         return this.value;
     }
 

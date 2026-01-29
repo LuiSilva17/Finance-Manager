@@ -7,6 +7,7 @@ import com.financemanager.data.Registry;
 import com.financemanager.model.Transaction;
 import com.financemanager.service.AccountManager;
 import com.financemanager.service.CategoryManager;
+import com.financemanager.service.SettingsManager;
 
 import java.awt.*;
 import java.io.*;
@@ -37,6 +38,13 @@ public class Menu {
     private JScrollPane dashboardScrollPane;
 
     private JComboBox<String> viewModeBox;
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            Menu menu = new Menu();
+            menu.start();
+        });
+    }
 
     public Menu() {
         CategoryManager.getInstance().load();
@@ -70,32 +78,87 @@ public class Menu {
 
     // --- TELA 1: MENU PRINCIPAL ---
     private JPanel menuPanel() {
-        JPanel painelGeral = new JPanel(new GridBagLayout());
+        JPanel rootPanel = new JPanel(new BorderLayout());
+
+        JPanel painelTopo = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        
+        JButton btnSettings = new JButton("⚙️");
+        btnSettings.setToolTipText("Settings / Install Parsers");
+        btnSettings.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
+        btnSettings.setFocusable(false);
+        btnSettings.addActionListener(e -> openSettings());
+
+        painelTopo.add(btnSettings);
+        rootPanel.add(painelTopo, BorderLayout.NORTH);
+
+        JPanel painelCentral = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
 
-        JPanel painelBotoes = new JPanel(new GridLayout(4, 1, 0, 20));
+        // ALTERAÇÃO 1: Mudei de 4 para 5 linhas para caber o novo botão
+        JPanel painelBotoes = new JPanel(new GridLayout(5, 1, 0, 20));
 
         JButton btnCreate = new JButton("Create New Manager");
         JButton btnLoad = new JButton("Load Manager");
+        JButton btnImport = new JButton("Import Existing Manager"); // NOVO BOTÃO
         JButton btnManageCats = new JButton("Manage Categories");
         JButton btnExit = new JButton("Exit");
 
         Font font = new Font("Arial", Font.BOLD, 18);
         btnCreate.setFont(font);
         btnLoad.setFont(font);
+        btnImport.setFont(font); // Aplicar estilo
         btnManageCats.setFont(font);
         btnExit.setFont(font);
 
         Dimension buttonSize = new Dimension(0, 60);
         btnCreate.setPreferredSize(buttonSize);
         btnLoad.setPreferredSize(buttonSize);
+        btnImport.setPreferredSize(buttonSize); // Aplicar tamanho
         btnManageCats.setPreferredSize(buttonSize);
         btnExit.setPreferredSize(buttonSize);
 
         btnCreate.addActionListener(e -> cardLayout.show(mainPanel, "Create"));
+        
         btnLoad.addActionListener(e -> {
             refreshLoadPage();
             cardLayout.show(mainPanel, "Load");
+        });
+
+        // ALTERAÇÃO 2: Lógica do botão Importar (.manager)
+        btnImport.addActionListener(e -> {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("Select an Account File (.manager) to Import");
+            
+            // Filtro para garantir que só escolhes ficheiros .manager
+            javax.swing.filechooser.FileNameExtensionFilter filter = 
+                new javax.swing.filechooser.FileNameExtensionFilter("Account Manager Files (.manager)", "manager");
+            fileChooser.setFileFilter(filter);
+            
+            if (fileChooser.showOpenDialog(frame) == JFileChooser.APPROVE_OPTION) {
+                File selectedFile = fileChooser.getSelectedFile();
+                try {
+                    // Carregar o ficheiro .manager
+                    AccountManager importedManager = AccountManager.loadFromFile(selectedFile.getAbsolutePath());
+                    
+                    if (importedManager != null) {
+                        // Registar no sistema (Recuperar a memória)
+                        String fileName = selectedFile.getName();
+                        String managerName = fileName.replace(".manager", ""); 
+                        
+                        registry.registerManager(managerName, selectedFile.getAbsolutePath());
+                        
+                        JOptionPane.showMessageDialog(frame, "Manager '" + managerName + "' imported successfully!");
+                        this.manager = importedManager;
+                        refreshCurrentView(); 
+                        cardLayout.show(mainPanel, "Dashboard");
+                    }
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(frame, 
+                        "Error importing file.\nMake sure you selected a valid '.manager' file.\n" + ex.getMessage(),
+                        "Import Error",
+                        JOptionPane.ERROR_MESSAGE);
+                }
+            }
         });
 
         btnManageCats.addActionListener(e -> openCategoryManager());
@@ -104,36 +167,53 @@ public class Menu {
 
         painelBotoes.add(btnCreate);
         painelBotoes.add(btnLoad);
+        painelBotoes.add(btnImport); // Adicionar o botão ao painel
         painelBotoes.add(btnManageCats);
         painelBotoes.add(btnExit);
 
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 0.3;
-        painelGeral.add(Box.createGlue(), gbc);
+        painelCentral.add(Box.createGlue(), gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 0.4;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        painelGeral.add(painelBotoes, gbc);
+        painelCentral.add(painelBotoes, gbc);
 
         gbc.gridx = 2;
         gbc.weightx = 0.3;
-        painelGeral.add(Box.createGlue(), gbc);
+        painelCentral.add(Box.createGlue(), gbc);
 
-        return painelGeral;
+        // Adicionar o painel central ao root
+        rootPanel.add(painelCentral, BorderLayout.CENTER);
+
+        return rootPanel;
     }
 
     // --- TELA 2: CREATE MANAGER ---
     private JPanel createPanel() {
         JPanel painelGeral = new JPanel(new BorderLayout());
 
+        // --- 1. Topo com Settings e Back ---
         JPanel painelTopo = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        
+        // Botão Settings
+        JButton btnSettings = new JButton("⚙️");
+        btnSettings.setToolTipText("Install/Uninstall Bank Readers");
+        btnSettings.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14)); // Fonte para garantir que o emoji aparece bem
+        btnSettings.setFocusable(false);
+        btnSettings.addActionListener(e -> openSettings());
+        painelTopo.add(btnSettings);
+
+        // Botão Back
         JButton btnBack = new JButton("Back");
         btnBack.setFont(new Font("Arial", Font.BOLD, 14));
         btnBack.addActionListener(e -> cardLayout.show(mainPanel, "Menu"));
         painelTopo.add(btnBack);
+        
         painelGeral.add(painelTopo, BorderLayout.NORTH);
+        // -----------------------------------
 
         JPanel painelProporcional = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
@@ -163,6 +243,8 @@ public class Menu {
         JButton btnCreateManager = new JButton("Create Manager");
         btnCreateManager.setFont(new Font("Arial", Font.BOLD, 18));
         btnCreateManager.setPreferredSize(new Dimension(0, 60));
+        
+        // --- 2. Lógica Atualizada do Botão Create ---
         btnCreateManager.addActionListener(e -> {
             String path = txtPath.getText();
             if (path.equals("No file selected...")) {
@@ -173,19 +255,9 @@ public class Menu {
                 return;
             }
 
-            String[] bankOptions = { "Crédito Agrícola", "CGD", "Santander", "Novo Banco" };
+            String selectedBank = showBankSelectionDialog();
 
-            String selectedBank = (String) JOptionPane.showInputDialog(
-                null,
-                "What bank is this extract from?",
-                "Select Bank",
-                JOptionPane.QUESTION_MESSAGE,
-                null,
-                bankOptions,
-                bankOptions[0]
-            );
-
-            // Operation was cancelled
+            // Se for null, o utilizador cancelou
             if (selectedBank == null) {
                 return;
             }
@@ -220,6 +292,7 @@ public class Menu {
                     List<Transaction> transactions = parser.parse(f);
                     AccountManager newManager = new AccountManager(trimmedName);
 
+                    // Importante: Guardar o tipo de banco escolhido
                     newManager.setBankType(selectedBank);
                     
                     newManager.loadTransactions(transactions);
@@ -973,14 +1046,139 @@ public class Menu {
         }
     }
 
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            Menu menu = new Menu();
-            menu.start();
+    // --- NOVO MÉTODO: Janela de Definições (Sem reinício) ---
+    private void openSettings() {
+        JDialog dialog = new JDialog(frame, "Settings - Manage Parsers", true);
+        dialog.setSize(400, 350);
+        dialog.setLocationRelativeTo(frame);
+        dialog.setLayout(new BorderLayout());
+
+        JPanel listPanel = new JPanel();
+        listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
+        listPanel.setBorder(BorderFactory.createTitledBorder("Available Bank Readers"));
+
+        SettingsManager settings = SettingsManager.getInstance();
+        
+        // Botão Save (Começa desativado)
+        JButton btnSave = new JButton("Save");
+        btnSave.setEnabled(false);
+
+        // Lista para guardar as referências das checkboxes
+        java.util.List<JCheckBox> checkBoxes = new java.util.ArrayList<>();
+
+        // LISTENER INTELIGENTE: Verifica se o estado visual difere do estado gravado
+        java.awt.event.ActionListener changeChecker = e -> {
+            boolean hasChanges = false;
+            for (JCheckBox cb : checkBoxes) {
+                String bankName = cb.getText();
+                boolean isSelected = cb.isSelected();
+                boolean isInstalled = settings.isInstalled(bankName);
+
+                // Se o que está na checkbox for diferente do que está na memória => Mudou
+                if (isSelected != isInstalled) {
+                    hasChanges = true;
+                    break; 
+                }
+            }
+            btnSave.setEnabled(hasChanges);
+        };
+
+        for (String bank : SettingsManager.SUPPORTED_BANKS) {
+            JCheckBox cb = new JCheckBox(bank);
+            
+            // Estado inicial visual (lê da memória)
+            if (settings.isInstalled(bank)) {
+                cb.setSelected(true);
+                cb.setForeground(Color.GRAY);
+            }
+            
+            // 1. Muda a cor (visual apenas)
+            cb.addActionListener(ev -> {
+                if (cb.isSelected()) cb.setForeground(Color.GRAY);
+                else cb.setForeground(Color.BLACK);
+            });
+
+            // 2. Verifica se ativa o botão Save
+            cb.addActionListener(changeChecker);
+
+            checkBoxes.add(cb);
+            listPanel.add(cb);
+        }
+
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton btnCancel = new JButton("Cancel");
+        
+        btnCancel.addActionListener(e -> dialog.dispose());
+
+        btnSave.addActionListener(e -> {
+            // Aplicar alterações
+            for (JCheckBox cb : checkBoxes) {
+                String bankName = cb.getText();
+                if (cb.isSelected()) {
+                    settings.install(bankName);
+                } else {
+                    settings.uninstall(bankName);
+                }
+            }
+            settings.save(); // Grava no settings.dat
+            JOptionPane.showMessageDialog(dialog, "Settings saved. Readers updated.");
+            dialog.dispose();
         });
+
+        bottomPanel.add(btnCancel);
+        bottomPanel.add(btnSave);
+
+        dialog.add(new JScrollPane(listPanel), BorderLayout.CENTER);
+        dialog.add(bottomPanel, BorderLayout.SOUTH);
+        dialog.setVisible(true);
     }
 
-    // --- CLASSES INTERNAS AUXILIARES PARA A JXTreeTable ---
+    private String showBankSelectionDialog() {
+        JPanel panel = new JPanel(new BorderLayout(5, 5));
+
+        // 1. Barra de Topo para a Rodinha (Canto Superior Esquerdo)
+        JPanel topBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        
+        JButton btnSettings = new JButton("⚙️");
+        btnSettings.setToolTipText("Install/Uninstall Bank Readers");
+        btnSettings.setFocusable(false);
+        
+        // Dropdown (declarada aqui para ser atualizada pelo botão)
+        JComboBox<String> comboBanks = new JComboBox<>();
+
+        // Lógica de atualizar a lista
+        Runnable refreshCombo = () -> {
+            comboBanks.removeAllItems();
+            String[] installed = SettingsManager.getInstance().getInstalledBanks();
+            for (String s : installed) comboBanks.addItem(s);
+        };
+        refreshCombo.run();
+
+        btnSettings.addActionListener(e -> {
+            openSettings();
+            refreshCombo.run();
+        });
+
+        topBar.add(btnSettings);
+
+        // 2. O conteúdo do meio (Texto + Dropdown)
+        JPanel centerContent = new JPanel(new GridLayout(2, 1, 0, 5));
+        centerContent.add(new JLabel("Select the Bank for this new Manager:"));
+        centerContent.add(comboBanks);
+
+        // 3. Montagem
+        panel.add(topBar, BorderLayout.NORTH);
+        panel.add(centerContent, BorderLayout.CENTER);
+
+        // Mostrar o Dialog
+        int result = JOptionPane.showConfirmDialog(frame, panel, "Create New Manager", 
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+        if (result == JOptionPane.OK_OPTION) {
+            return (String) comboBanks.getSelectedItem();
+        }
+        return null;
+    }
 
     static class CategoryRow {
 

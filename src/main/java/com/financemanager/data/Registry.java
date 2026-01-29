@@ -6,7 +6,7 @@ import java.util.HashMap;
 public class Registry {
     
     private static final String DATA_PATH = System.getProperty("user.home") + File.separator + "Finance Manager Data" + File.separator;
-    private static final String FILE_NAME = "finance_manager_config.manager";
+    private static final String FILE_NAME = "finance_manager_config.dat";
     private HashMap<String, String> map; // key = name, value = file path
     private File file;
 

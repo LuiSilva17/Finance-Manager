@@ -9,7 +9,7 @@ public class SettingsManager implements Serializable {
     private static SettingsManager instance = null;
 
     private HashSet<String> installedParsers;
-    private static final String[] SUPPORTED_BANKS = {"CDG", "CA", "BPI", "MILLENIUM", "NOVO BANCO", "REVOLUT", "SANTANDER"};
+    public static final String[] SUPPORTED_BANKS = {"CDG", "CA", "BPI", "MILLENIUM", "NOVO BANCO", "REVOLUT", "SANTANDER"};
     
     private static final String CONFIG_PATH = System.getProperty("user.home") + File.separator + "Finance Manager Data" + File.separator;
     private static final String FILE_NAME = "settings.dat";
@@ -65,19 +65,18 @@ public class SettingsManager implements Serializable {
         for (String string : SUPPORTED_BANKS) {
             if (bankName.equals(string)) {
                 if (this.installedParsers.contains(bankName)) {
-                    this.installedParsers.remove(bankName);
-                return true;
+                    return this.installedParsers.remove(bankName);
                 }
             }
         }
-        return false;
+        return this.installedParsers.remove(bankName);
     }
 
     public boolean isInstalled(String bankName) {
         return this.installedParsers.contains(bankName);
     }
 
-    public HashSet<String> getInstalledBanks() {
-        return this.installedParsers;
+    public String[] getInstalledBanks() {
+        return this.installedParsers.toArray(new String[this.installedParsers.size()]);
     }
 }

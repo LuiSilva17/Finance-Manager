@@ -10,16 +10,21 @@ import com.financemanager.service.CategoryManager;
 import com.financemanager.service.SettingsManager;
 
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import org.jdesktop.swingx.JXMonthView;
 import org.jdesktop.swingx.JXTreeTable;
+import org.jdesktop.swingx.calendar.DateSelectionModel;
 import org.jdesktop.swingx.treetable.AbstractTreeTableModel;
 
 public class Menu {
@@ -39,9 +44,10 @@ public class Menu {
 
     private JComboBox<String> viewModeBox;
 
+    // Filter Variables
     private LocalDate filterStartDate = null;
     private LocalDate filterEndDate = null;
-    private JButton btnFilter;
+    private JLabel filterLabel; // Label inside the custom date button
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
@@ -605,15 +611,19 @@ public class Menu {
             }
         });
 
-        JButton btnCats = new JButton("Categories");
-        btnCats.setFont(new Font("Arial", Font.BOLD, 14));
-        btnCats.addActionListener(e -> {
+        JButton btnCategories = new JButton("Categories");
+        btnCategories.setFont(new Font("Arial", Font.BOLD, 14));
+        btnCategories.addActionListener(e -> {
             openCategoryManager();
             refreshCurrentView();
         });
 
+        // REPLACEMENT: Use custom component instead of basic JButton
+        JPanel dateFilterPanel = createDateFilterComponent();
+
         rightActionPanel.add(viewModeBox);
-        rightActionPanel.add(btnCats);
+        rightActionPanel.add(dateFilterPanel);
+        rightActionPanel.add(btnCategories);
         rightActionPanel.add(btnAddFile);
         topPanel.add(rightActionPanel, BorderLayout.EAST);
         dashboardPanel.add(topPanel, BorderLayout.NORTH);
@@ -988,8 +998,8 @@ public class Menu {
         Map<String, CategoryRow> mapRows = new HashMap<>();
         CategoryManager catManager = CategoryManager.getInstance();
 
-        // 1. Group Transactions (CORRECTED: using effective category for manual override)
-        for (Transaction t : this.manager.getTransactions()) {
+        // 1. Group Transactions
+        for (Transaction t : getFilteredTransactions()) {
             String catName = t.getEffectiveCategory(); 
             mapRows.putIfAbsent(catName, new CategoryRow(catName));
             CategoryRow row = mapRows.get(catName);
@@ -1052,7 +1062,6 @@ public class Menu {
                         treeTable.setRowSelectionInterval(row, row);
                         Object node = treeTable.getPathForRow(row).getLastPathComponent();
                         
-                        // Show menu only if it is a transaction
                         if (node instanceof Transaction) {
                             showTransactionPopup(e.getComponent(), e.getX(), e.getY(), (Transaction) node);
                         }
@@ -1068,7 +1077,27 @@ public class Menu {
         if (this.manager == null) return;
 
         this.bankNameLabel.setText(this.manager.getName());
-        this.balanceLabel.setText(String.format("%.2f €", this.manager.getCurrentBalance()));
+
+        List<Transaction> currentList = getFilteredTransactions();
+
+        // Update Balance Label
+        if (this.filterStartDate != null || this.filterEndDate != null) {
+            BigDecimal filteredTotal = BigDecimal.ZERO;
+            for (Transaction t : currentList) {
+                filteredTotal = filteredTotal.add(t.getValue());
+            }
+            this.balanceLabel.setText("Filter: " + String.format("%.2f €", filteredTotal));
+            this.balanceLabel.setForeground(Color.BLUE.darker());
+        } else {
+            BigDecimal total = this.manager.getCurrentBalance();
+            this.balanceLabel.setText(String.format("%.2f €", total));
+            
+            if (total.compareTo(BigDecimal.ZERO) >= 0) {
+                this.balanceLabel.setForeground(new Color(0, 100, 0));
+            } else {
+                this.balanceLabel.setForeground(Color.RED);
+            }
+        }
 
         String mode = (String) this.viewModeBox.getSelectedItem();
 
@@ -1084,9 +1113,7 @@ public class Menu {
             DefaultTableModel model = (DefaultTableModel) this.transactionsTable.getModel();
             model.setRowCount(0);
 
-            List<Transaction> transactions = this.manager.getTransactions();
-            
-            for (Transaction t : transactions) {
+            for (Transaction t : currentList) {
                 Object[] row = new Object[4];
                 row[0] = t.getDate();
                 row[1] = t.getDisplayDescription(); 
@@ -1266,6 +1293,187 @@ public class Menu {
         popupMenu.show(component, x, y);
     }
 
+    private List<Transaction> getFilteredTransactions() {
+        if (this.manager == null) return new ArrayList<>();
+        
+        if (filterStartDate == null && filterEndDate == null) {
+            return this.manager.getTransactions();
+        }
+
+        List<Transaction> filtered = new ArrayList<>();
+        for (Transaction t : this.manager.getTransactions()) {
+            LocalDate d = t.getDate();
+            
+            boolean isAfterStart = (filterStartDate == null) || (!d.isBefore(filterStartDate));
+            boolean isBeforeEnd = (filterEndDate == null) || (!d.isAfter(filterEndDate));
+
+            if (isAfterStart && isBeforeEnd) {
+                filtered.add(t);
+            }
+        }
+        return filtered;
+    }
+
+    // 1. CRIA O BOTÃO VISUAL (O "Falso" ComboBox)
+    private JPanel createDateFilterComponent() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createLineBorder(Color.GRAY, 1));
+        panel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        panel.setPreferredSize(new Dimension(220, 30));
+
+        // Label com o texto da data
+        this.filterLabel = new JLabel(getFilterLabelText());
+        this.filterLabel.setFont(new Font("Arial", Font.PLAIN, 13));
+        this.filterLabel.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 0));
+        
+        // Seta para parecer um dropdown
+        JButton arrowBtn = new JButton("▼");
+        arrowBtn.setFont(new Font("Arial", Font.PLAIN, 10));
+        arrowBtn.setFocusable(false);
+        arrowBtn.setBorderPainted(false);
+        arrowBtn.setContentAreaFilled(false);
+        
+        // Clicar na seta abre o popup
+        arrowBtn.addActionListener(e -> showDateFilterPopup(panel));
+
+        panel.add(this.filterLabel, BorderLayout.CENTER);
+        panel.add(arrowBtn, BorderLayout.EAST);
+
+        // Clicar no painel branco também abre o popup
+        panel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                showDateFilterPopup(panel);
+            }
+        });
+
+        return panel;
+    }
+
+    // 2. TEXTO DO BOTÃO
+    private String getFilterLabelText() {
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        if (filterStartDate == null && filterEndDate == null) {
+            return "Today: " + LocalDate.now().format(fmt); 
+        } else {
+            if (filterStartDate.equals(filterEndDate)) {
+                return filterStartDate.format(fmt);
+            } else {
+                return filterStartDate.format(fmt) + " - " + filterEndDate.format(fmt);
+            }
+        }
+    }
+
+    // 3. ATUALIZA O VISUAL (Borda azul quando ativo)
+    private void updateFilterLabel() {
+        if (this.filterLabel != null) {
+            this.filterLabel.setText(getFilterLabelText());
+            JPanel parent = (JPanel) this.filterLabel.getParent();
+            if (filterStartDate != null) {
+                parent.setBorder(BorderFactory.createLineBorder(new Color(0, 120, 215), 2));
+            } else {
+                parent.setBorder(BorderFactory.createLineBorder(Color.GRAY, 1));
+            }
+        }
+    }
+
+    // 4. O NOVO POPUP (Substitui o antigo Dialog)
+    private void showDateFilterPopup(Component invoker) {
+        JPopupMenu popup = new JPopupMenu();
+        popup.setLayout(new BorderLayout());
+        popup.setBackground(Color.WHITE);
+
+        JXMonthView monthView = new JXMonthView();
+        monthView.setTraversable(true);
+        monthView.setSelectionMode(DateSelectionModel.SelectionMode.SINGLE_INTERVAL_SELECTION);
+        
+        // Configuração visual do calendário
+        monthView.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+
+        // Carregar seleção existente
+        if (this.filterStartDate != null) {
+            Date start = Date.from(this.filterStartDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+            Date end = (this.filterEndDate != null) 
+                ? Date.from(this.filterEndDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
+                : start;
+            monthView.setSelectionInterval(start, end);
+            monthView.ensureDateVisible(start);
+        } else {
+            monthView.ensureDateVisible(new Date());
+        }
+
+        // --- LÓGICA DE SELEÇÃO (CORRIGIDA PARA ARRASTAR + SHIFT) ---
+        
+        // 1. Definir a âncora inicial (se já houver filtro, é o inicio do filtro)
+        final Date[] anchorDate = { (this.filterStartDate != null) ? Date.from(this.filterStartDate.atStartOfDay(ZoneId.systemDefault()).toInstant()) : null };
+
+        monthView.addActionListener(e -> {
+            boolean isShiftDown = (e.getModifiers() & java.awt.event.ActionEvent.SHIFT_MASK) != 0;
+            
+            if (isShiftDown && anchorDate[0] != null) {
+                // LÓGICA MANUAL (Só interfere se o SHIFT estiver pressionado)
+                // Isto corrige o bug de selecionar entre meses diferentes
+                Date clickedDate = monthView.getSelectionDate();
+                if (clickedDate != null) {
+                    Date start = clickedDate.before(anchorDate[0]) ? clickedDate : anchorDate[0];
+                    Date end = clickedDate.before(anchorDate[0]) ? anchorDate[0] : clickedDate;
+                    monthView.setSelectionInterval(start, end);
+                }
+            } else {
+                // COMPORTAMENTO PADRÃO (Clique normal ou Arrastar)
+                // Não forçamos nada aqui! Deixamos o JXMonthView gerir o arrasto nativamente.
+                // Apenas atualizamos a âncora para o caso de o utilizador querer usar Shift a seguir.
+                Date first = monthView.getFirstSelectionDate();
+                if (first != null) {
+                    anchorDate[0] = first; 
+                }
+            }
+        });
+
+        // --- PAINEL DE BOTÕES ---
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        btnPanel.setBackground(Color.WHITE);
+
+        JButton btnClear = new JButton("Clear");
+        JButton btnApply = new JButton("Apply");
+        
+        Dimension btnSize = new Dimension(70, 25);
+        btnClear.setPreferredSize(btnSize);
+        btnApply.setPreferredSize(btnSize);
+
+        btnClear.addActionListener(e -> {
+            this.filterStartDate = null;
+            this.filterEndDate = null;
+            updateFilterLabel();
+            refreshCurrentView();
+            popup.setVisible(false);
+        });
+
+        btnApply.addActionListener(e -> {
+            Date start = monthView.getFirstSelectionDate();
+            Date end = monthView.getLastSelectionDate();
+            if (start != null) {
+                this.filterStartDate = start.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                this.filterEndDate = (end != null) ? end.toInstant().atZone(ZoneId.systemDefault()).toLocalDate() : this.filterStartDate;
+            } else {
+                this.filterStartDate = null;
+                this.filterEndDate = null;
+            }
+            updateFilterLabel();
+            refreshCurrentView();
+            popup.setVisible(false);
+        });
+
+        btnPanel.add(btnClear);
+        btnPanel.add(btnApply);
+
+        popup.add(monthView, BorderLayout.CENTER);
+        popup.add(btnPanel, BorderLayout.SOUTH);
+
+        popup.show(invoker, 0, invoker.getHeight());
+    }
+
     static class CategoryRow {
 
         String name;
@@ -1289,7 +1497,7 @@ public class Menu {
         };
 
         public FinanceTreeModel(List<CategoryRow> categories) {
-            super(new Object()); // Invisible Root
+            super(new Object()); 
             this.categories = categories;
         }
 

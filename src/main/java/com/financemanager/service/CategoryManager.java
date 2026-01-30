@@ -98,6 +98,10 @@ public class CategoryManager implements Serializable {
         return this.categories;
     }
 
+    public List<String> getCategoriesList() {
+        return new ArrayList<String>(this.categories.keySet());
+    }
+
     public void syncOrder() {
         if (this.categoryOrder == null) {
             this.categoryOrder = new ArrayList<>();

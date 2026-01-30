@@ -5,6 +5,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Objects;
 
+import com.financemanager.service.CategoryManager;
+
 public class Transaction implements Serializable {
     
     private static final long serialVersionUID = 1L;
@@ -15,6 +17,8 @@ public class Transaction implements Serializable {
     private TransactionEnum type;
     private String payersName;
     private String beneficiarysName;
+    private String userNote = "";
+    private String manualCategory = "";
 
     public Transaction(LocalDate date, String description, BigDecimal value, TransactionEnum type) {
         this.date = date;
@@ -54,6 +58,32 @@ public class Transaction implements Serializable {
 
     public String getBeneficiarysName() {
         return this.beneficiarysName;
+    }
+
+    public String getUserNote() {
+        return this.userNote;
+    }
+
+    public void setUserNote(String newNote) {
+        this.userNote = newNote;
+    }
+
+    public String getEffectiveCategory() {
+        if (this.manualCategory != null) {
+            return this.manualCategory;
+        }
+        return CategoryManager.getInstance().getCategoryFor(this.description);
+    }
+
+    public void setCategory(String categoryName) {
+        this.manualCategory = categoryName;
+    }
+
+    public String getDisplayDescription() {
+        if (this.userNote != null && !this.userNote.trim().isEmpty()) {
+            return this.userNote;
+        }
+        return this.description;
     }
     
     @Override

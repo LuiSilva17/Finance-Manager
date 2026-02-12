@@ -10,21 +10,14 @@ import com.financemanager.service.CategoryManager;
 import com.financemanager.service.SettingsManager;
 
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.io.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
-import org.jdesktop.swingx.JXMonthView;
-import org.jdesktop.swingx.JXTreeTable;
-import org.jdesktop.swingx.calendar.DateSelectionModel;
 import org.jdesktop.swingx.treetable.AbstractTreeTableModel;
 
 public class Menu {
@@ -38,7 +31,7 @@ public class Menu {
 
     private JPanel buttonContainer;
 
-    private JComboBox<String> viewModeBox;
+    private DashboardPanel dashBoardPanel;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
@@ -67,11 +60,12 @@ public class Menu {
     public void addContent() {
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
+        this.dashBoardPanel = new DashboardPanel(this.cardLayout, this.mainPanel);
 
         mainPanel.add(menuPanel(), "Menu");
         mainPanel.add(createPanel(), "Create");
         mainPanel.add(loadPanel(), "Load");
-        mainPanel.add(dashboardPanel(), "Dashboard");
+        mainPanel.add(this.dashBoardPanel, "Dashboard");
 
         frame.add(mainPanel);
         cardLayout.show(mainPanel, "Menu");
@@ -145,7 +139,8 @@ public class Menu {
                         
                         JOptionPane.showMessageDialog(frame, "Manager '" + managerName + "' imported successfully!");
                         this.manager = importedManager;
-                        refreshCurrentView(); 
+                        this.dashBoardPanel.setManager(this.manager);
+                        this.dashBoardPanel.refreshCurrentView(); 
                         cardLayout.show(mainPanel, "Dashboard");
                     }
                 } catch (Exception ex) {
@@ -157,7 +152,7 @@ public class Menu {
             }
         });
 
-        btnManageCats.addActionListener(e -> openCategoryManager());
+        btnManageCats.addActionListener(e -> new CategoryDialog(frame).setVisible(true));
 
         btnExit.addActionListener(e -> System.exit(0));
 
@@ -304,7 +299,8 @@ public class Menu {
                     if (newManager.getFilePath() != null) {
                         registry.registerManager(trimmedName, newManager.getFilePath());
                         this.manager = newManager;
-                        refreshCurrentView();
+                        this.dashBoardPanel.setManager(this.manager);
+                        this.dashBoardPanel.refreshCurrentView();
                         cardLayout.show(mainPanel, "Dashboard");
                     }
                 }
@@ -463,9 +459,8 @@ public class Menu {
                     this.manager = AccountManager.loadFromFile(path);
                     if (this.manager != null) {
                         this.manager.setName(name);
-
-                        refreshCurrentView();
-
+                        this.dashBoardPanel.refreshCurrentView();
+                        this.dashBoardPanel.setManager(this.manager);
                         cardLayout.show(mainPanel, "Dashboard");
                     }
                 });

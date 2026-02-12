@@ -38,7 +38,7 @@ public class DashboardPanel extends JPanel {
     private JTable transactionsTable;
     private JLabel bankNameLabel;
     private JLabel balanceLabel;
-    private JComboBox viewModeBox;
+    private JComboBox<String> viewModeBox;
     private JScrollPane dashboardScrollPane;
 
     private LocalDate filterStartDate = null;
@@ -46,7 +46,7 @@ public class DashboardPanel extends JPanel {
     private JLabel filterLabel;
     
     public DashboardPanel(CardLayout cardLayout, JPanel mainPanel) {
-        JPanel dashboardPanel = new JPanel(new BorderLayout());
+        this.setLayout(new BorderLayout());
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
@@ -71,7 +71,7 @@ public class DashboardPanel extends JPanel {
         editButton.addActionListener(e -> {
             if (this.manager == null) return;
             String currentName = this.manager.getName();
-            String newName = JOptionPane.showInputDialog(dashboardPanel, "Enter new bank name:", currentName);
+            String newName = JOptionPane.showInputDialog(this, "Enter new bank name:", currentName);
 
             if (newName != null && !newName.trim().isEmpty()) {
                 String finalName = newName.trim();
@@ -167,7 +167,7 @@ public class DashboardPanel extends JPanel {
         rightActionPanel.add(btnCategories);
         rightActionPanel.add(btnAddFile);
         topPanel.add(rightActionPanel, BorderLayout.EAST);
-        dashboardPanel.add(topPanel, BorderLayout.NORTH);
+        this.add(topPanel, BorderLayout.NORTH);
         
         String[] columnNames = { "Date", "Description", "Type", "Value" };
         Object[][] data = {};
@@ -245,12 +245,12 @@ public class DashboardPanel extends JPanel {
         });
 
         this.dashboardScrollPane = new JScrollPane(this.transactionsTable);
-        dashboardPanel.add(this.dashboardScrollPane, BorderLayout.CENTER);
+        this.add(this.dashboardScrollPane, BorderLayout.CENTER);
 
         //return dashboardPanel;
     }
 
-    private void refreshCurrentView() {
+    public void refreshCurrentView() {
         if (this.manager == null) return;
 
         this.bankNameLabel.setText(this.manager.getName());
@@ -639,6 +639,7 @@ public class DashboardPanel extends JPanel {
 
     public void setManager(AccountManager newManager) {
         this.manager = newManager;
+        refreshCurrentView();
     }
 
     public void setRegistry(Registry newRegistry) {

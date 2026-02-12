@@ -37,17 +37,8 @@ public class Menu {
     private boolean isEditMode = false;
 
     private JPanel buttonContainer;
-    private JTable transactionsTable;
-    private JLabel balanceLabel;
-    private JLabel bankNameLabel;
-    private JScrollPane dashboardScrollPane;
 
     private JComboBox<String> viewModeBox;
-
-    // Filter Variables
-    private LocalDate filterStartDate = null;
-    private LocalDate filterEndDate = null;
-    private JLabel filterLabel; // Label inside the custom date button
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
@@ -505,7 +496,7 @@ public class Menu {
     }
 
     // --- SCREEN 4: DASHBOARD ---
-    private JPanel dashboardPanel() {
+    /*private JPanel dashboardPanel() {
         JPanel dashboardPanel = new JPanel(new BorderLayout());
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -707,9 +698,9 @@ public class Menu {
         dashboardPanel.add(this.dashboardScrollPane, BorderLayout.CENTER);
 
         return dashboardPanel;
-    }
+    } */
 
-    private void updateDashboardUI() {
+    /*private void updateDashboardUI() {
         if (this.manager == null) {
             return;
         }
@@ -740,7 +731,7 @@ public class Menu {
                 }
             );
         }
-    }
+    }*/
 
     private void deleteManager(String name, String path) {
         int choice = JOptionPane.showConfirmDialog(
@@ -790,7 +781,7 @@ public class Menu {
         }
     }
 
-    private void openCategoryManager() {
+    /*private void openCategoryManager() {
         JDialog dialog = new JDialog(frame, "Manage Categories", true);
         dialog.setSize(750, 500);
         dialog.setResizable(false);
@@ -992,9 +983,9 @@ public class Menu {
         dialog.add(leftPanel);
         dialog.add(rightPanel);
         dialog.setVisible(true);
-    }
+    }*/
 
-    private JXTreeTable buildGroupTreeTable() {
+    /*private JXTreeTable buildGroupTreeTable() {
         Map<String, CategoryRow> mapRows = new HashMap<>();
         CategoryManager catManager = CategoryManager.getInstance();
 
@@ -1071,9 +1062,9 @@ public class Menu {
         });
 
         return treeTable;
-    }
+    }*/
 
-    private void refreshCurrentView() {
+    /*private void refreshCurrentView() {
         if (this.manager == null) return;
 
         this.bankNameLabel.setText(this.manager.getName());
@@ -1122,7 +1113,7 @@ public class Menu {
                 model.addRow(row);
             }
         }
-    }
+    }*/
 
     private void openSettings() {
         JDialog dialog = new JDialog(frame, "Settings - Manage Parsers", true);
@@ -1243,7 +1234,7 @@ public class Menu {
         return null;
     }
 
-    private void showTransactionPopup(Component component, int x, int y, Transaction t) {
+    /*private void showTransactionPopup(Component component, int x, int y, Transaction t) {
         JPopupMenu popupMenu = new JPopupMenu();
         JMenuItem editItem = new JMenuItem("Edit Description ✏️");
         JMenuItem categoryItem = new JMenuItem("Set Category 🏷️");
@@ -1291,9 +1282,9 @@ public class Menu {
         });
 
         popupMenu.show(component, x, y);
-    }
+    }*/
 
-    private List<Transaction> getFilteredTransactions() {
+    /*private List<Transaction> getFilteredTransactions() {
         if (this.manager == null) return new ArrayList<>();
         
         if (filterStartDate == null && filterEndDate == null) {
@@ -1312,10 +1303,10 @@ public class Menu {
             }
         }
         return filtered;
-    }
+    }*/
 
     // 1. CRIA O BOTÃO VISUAL (O "Falso" ComboBox)
-    private JPanel createDateFilterComponent() {
+    /*private JPanel createDateFilterComponent() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(Color.WHITE);
         panel.setBorder(BorderFactory.createLineBorder(Color.GRAY, 1));
@@ -1349,10 +1340,10 @@ public class Menu {
         });
 
         return panel;
-    }
+    }*/
 
     // 2. TEXTO DO BOTÃO
-    private String getFilterLabelText() {
+    /*private String getFilterLabelText() {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         if (filterStartDate == null && filterEndDate == null) {
             return "Today: " + LocalDate.now().format(fmt); 
@@ -1363,10 +1354,10 @@ public class Menu {
                 return filterStartDate.format(fmt) + " - " + filterEndDate.format(fmt);
             }
         }
-    }
+    }*/
 
     // 3. ATUALIZA O VISUAL (Borda azul quando ativo)
-    private void updateFilterLabel() {
+    /*private void updateFilterLabel() {
         if (this.filterLabel != null) {
             this.filterLabel.setText(getFilterLabelText());
             JPanel parent = (JPanel) this.filterLabel.getParent();
@@ -1376,10 +1367,10 @@ public class Menu {
                 parent.setBorder(BorderFactory.createLineBorder(Color.GRAY, 1));
             }
         }
-    }
+    }*/
 
     // 4. O NOVO POPUP (Substitui o antigo Dialog)
-    private void showDateFilterPopup(Component invoker) {
+    /*private void showDateFilterPopup(Component invoker) {
         JPopupMenu popup = new JPopupMenu();
         popup.setLayout(new BorderLayout());
         popup.setBackground(Color.WHITE);
@@ -1402,8 +1393,6 @@ public class Menu {
         } else {
             monthView.ensureDateVisible(new Date());
         }
-
-        // --- LÓGICA DE SELEÇÃO (CORRIGIDA PARA ARRASTAR + SHIFT) ---
         
         // 1. Definir a âncora inicial (se já houver filtro, é o inicio do filtro)
         final Date[] anchorDate = { (this.filterStartDate != null) ? Date.from(this.filterStartDate.atStartOfDay(ZoneId.systemDefault()).toInstant()) : null };
@@ -1472,7 +1461,7 @@ public class Menu {
         popup.add(btnPanel, BorderLayout.SOUTH);
 
         popup.show(invoker, 0, invoker.getHeight());
-    }
+    }*/
 
     static class CategoryRow {
 

@@ -1,0 +1,665 @@
+package com.financemanager.gui;
+
+import java.awt.*;
+import java.awt.event.*;
+import java.io.File;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.*;
+
+import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableColumn;
+
+import org.jdesktop.swingx.JXMonthView;
+import org.jdesktop.swingx.JXTreeTable;
+import org.jdesktop.swingx.calendar.DateSelectionModel;
+
+import com.financemanager.IO.importers.BankStatementParser;
+import com.financemanager.IO.importers.CGDParser;
+import com.financemanager.IO.importers.CreditoAgricolaParser;
+import com.financemanager.gui.components.CategoryRow;
+import com.financemanager.gui.components.FinanceTreeModel;
+import com.financemanager.gui.components.SmartCellRenderer;
+import com.financemanager.model.Transaction;
+import com.financemanager.service.AccountManager;
+import com.financemanager.service.CategoryManager;
+import com.financemanager.data.Registry;
+
+public class DashboardPanel extends JPanel {
+
+    private AccountManager manager;
+    private Registry registry;
+
+    //private JFrame frame;
+    private JTable transactionsTable;
+    private JLabel bankNameLabel;
+    private JLabel balanceLabel;
+    private JComboBox<String> viewModeBox;
+    private JScrollPane dashboardScrollPane;
+
+    private LocalDate filterStartDate = null;
+    private LocalDate filterEndDate = null;
+    private JLabel filterLabel;
+    
+    public DashboardPanel(CardLayout cardLayout, JPanel mainPanel) {
+        this.setLayout(new BorderLayout());
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        JButton btnBack = new JButton("Back to Menu");
+        btnBack.setFont(new Font("Arial", Font.BOLD, 14));
+        btnBack.addActionListener(e -> cardLayout.show(mainPanel, "Menu"));
+        topPanel.add(btnBack, BorderLayout.WEST);
+
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 0));
+        this.bankNameLabel = new JLabel("Bank Name");
+        this.bankNameLabel.setFont(new Font("Arial", Font.BOLD, 22));
+
+        JButton editButton = new JButton("✎");
+        editButton.setFont(new Font("Segoe UI Symbol", Font.PLAIN, 20));
+        editButton.setToolTipText("Edit Name");
+        editButton.setFocusPainted(false);
+        editButton.setBorderPainted(false);
+        editButton.setContentAreaFilled(false);
+        editButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        editButton.addActionListener(e -> {
+            if (this.manager == null) return;
+            String currentName = this.manager.getName();
+            String newName = JOptionPane.showInputDialog(this, "Enter new bank name:", currentName);
+            if (newName != null && !newName.trim().isEmpty()) {
+                String finalName = newName.trim();
+                this.manager.setName(finalName);
+                this.bankNameLabel.setText(finalName);
+                this.manager.saveToFile();
+                this.registry.renameManager(currentName, finalName);
+            }
+        });
+
+        this.balanceLabel = new JLabel("0.00 €");
+        this.balanceLabel.setFont(new Font("Arial", Font.BOLD, 22));
+        this.balanceLabel.setForeground(new Color(0, 100, 0));
+
+        titlePanel.add(this.bankNameLabel);
+        titlePanel.add(editButton);
+        titlePanel.add(new JLabel("|"));
+        titlePanel.add(this.balanceLabel);
+        topPanel.add(titlePanel, BorderLayout.CENTER);
+
+        JPanel rightActionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        String[] modes = { "Default Mode", "Group Mode" };
+        this.viewModeBox = new JComboBox<>(modes);
+        this.viewModeBox.setFont(new Font("Arial", Font.BOLD, 14));
+        this.viewModeBox.addActionListener(e -> refreshCurrentView());
+
+        JButton btnAddFile = new JButton("+ Add File");
+        btnAddFile.setFont(new Font("Arial", Font.BOLD, 14));
+        btnAddFile.setBackground(new Color(230, 230, 250));
+        btnAddFile.addActionListener(e -> {
+            if (this.manager.getBankType() == null) {
+                String[] bankOptions = { "Crédito Agrícola", "CGD", "Santander", "Novo Banco" };
+                String selectedBank = (String) JOptionPane.showInputDialog(this, "Select bank type:", "Fix Legacy", JOptionPane.QUESTION_MESSAGE, null, bankOptions, bankOptions[0]);
+                if (selectedBank == null) return;
+                this.manager.setBankType(selectedBank);
+                this.manager.saveToFile();
+            }
+            JFileChooser fileChooser = new JFileChooser();
+            if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+                try {
+                    BankStatementParser parser = this.manager.getBankType().equals("CGD") ? new CGDParser() : new CreditoAgricolaParser();
+                    List<Transaction> newTransactions = parser.parse(fileChooser.getSelectedFile());
+                    this.manager.mergeTransactions(newTransactions);
+                    this.manager.saveToFile();
+                    refreshCurrentView();
+                } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage()); }
+            }
+        });
+
+        JButton btnCategories = new JButton("Categories");
+        btnCategories.setFont(new Font("Arial", Font.BOLD, 14));
+        btnCategories.addActionListener(e -> {
+            new CategoryDialog(SwingUtilities.getWindowAncestor(this)).setVisible(true);
+            refreshCurrentView();
+        });
+
+        rightActionPanel.add(viewModeBox);
+        rightActionPanel.add(createDateFilterComponent());
+        rightActionPanel.add(btnCategories);
+        rightActionPanel.add(btnAddFile);
+        topPanel.add(rightActionPanel, BorderLayout.EAST);
+        this.add(topPanel, BorderLayout.NORTH);
+
+        // --- TABELA E MODELO ---
+        String[] columnNames = { "Date", "Type", "Value", "Category", "Description" };
+        DefaultTableModel model = new DefaultTableModel(null, columnNames) {
+            @Override
+            public Class<?> getColumnClass(int col) {
+                if (col == 0) return LocalDate.class;
+                if (col == 2) return Double.class;
+                return String.class;
+            }
+            @Override
+            public boolean isCellEditable(int row, int col) { return false; }
+        };
+
+        this.transactionsTable = new JTable(model);
+        this.transactionsTable.setAutoCreateRowSorter(true);
+        this.dashboardScrollPane = new JScrollPane(this.transactionsTable);
+        
+        // Isto controla a largura ideal, mas o Layout vai esticar o resto
+        this.dashboardScrollPane.setPreferredSize(new Dimension(950, 600));
+
+        // --- CENTRALIZAÇÃO HORIZONTAL + ESTREITAR VERTICALMENTE ---
+        JPanel tableCentralizer = new JPanel(new GridBagLayout());
+        tableCentralizer.setOpaque(false);
+        
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 1.0; // Usa a largura toda do ecrã para poder centrar
+        gbc.weighty = 1.0; // USA A ALTURA TODA DO ECRÃ
+        gbc.fill = GridBagConstraints.VERTICAL; // ESTICA DE CIMA A BAIXO
+        gbc.anchor = GridBagConstraints.CENTER; // MANTÉM NO MEIO (Horizontalmente)
+        
+        tableCentralizer.add(this.dashboardScrollPane, gbc);
+        this.add(tableCentralizer, BorderLayout.CENTER);
+
+        // Listener simplificado
+        this.transactionsTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent e) { if (e.isPopupTrigger()) showP(e); }
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent e) { if (e.isPopupTrigger()) showP(e); }
+            private void showP(java.awt.event.MouseEvent e) {
+                int row = transactionsTable.rowAtPoint(e.getPoint());
+                if (row >= 0) {
+                    transactionsTable.setRowSelectionInterval(row, row);
+                    int mRow = transactionsTable.convertRowIndexToModel(row);
+                    showTransactionPopup(e.getComponent(), e.getX(), e.getY(), manager.getTransactions().get(mRow));
+                }
+            }
+        });
+
+        formatTable(this.transactionsTable);
+    }
+
+    public void refreshCurrentView() {
+        if (this.manager == null) return;
+
+        // 1. Atualizar Nome e Saldo (Topo)
+        this.bankNameLabel.setText(this.manager.getName());
+
+        List<Transaction> currentList = getFilteredTransactions();
+
+        if (this.filterStartDate != null || this.filterEndDate != null) {
+            BigDecimal filteredTotal = BigDecimal.ZERO;
+            for (Transaction t : currentList) {
+                filteredTotal = filteredTotal.add(t.getValue());
+            }
+            this.balanceLabel.setText("Filter: " + String.format("%.2f €", filteredTotal));
+            this.balanceLabel.setForeground(Color.BLUE.darker());
+        } else {
+            BigDecimal total = this.manager.getCurrentBalance();
+            this.balanceLabel.setText(String.format("%.2f €", total));
+            this.balanceLabel.setForeground(total.compareTo(BigDecimal.ZERO) >= 0 ? new Color(0, 100, 0) : Color.RED);
+        }
+
+        String mode = (String) this.viewModeBox.getSelectedItem();
+
+        if ("Group Mode".equals(mode)) {
+            // --- MODO AGRUPADO (Árvore) ---
+            JXTreeTable treeTable = buildGroupTreeTable();
+            formatTable(treeTable); // <--- IMPORTANTE: Formatar também a árvore!
+            this.dashboardScrollPane.setViewportView(treeTable);
+            
+        } else {
+            // --- MODO DEFAULT (Tabela Plana) ---
+            // Ordem: Date - Type - Value - Category - Description
+            String[] columnNames = {"Date", "Type", "Value", "Category", "Description"};
+            
+            DefaultTableModel model = new DefaultTableModel(columnNames, 0) {
+                @Override
+                public Class<?> getColumnClass(int col) {
+                    if (col == 0) return java.time.LocalDate.class;
+                    if (col == 2) return java.math.BigDecimal.class;
+                    return String.class;
+                }
+                @Override
+                public boolean isCellEditable(int row, int col) { return false; }
+            };
+
+            for (Transaction t : currentList) {
+                Object[] row = new Object[5];
+                
+                row[0] = t.getDate();
+                row[1] = t.getType();
+                row[2] = t.getValue();
+                
+                // --- AQUI ESTÁ A CORREÇÃO: Forçar a procura da Categoria ---
+                // Usamos o CategoryManager para analisar a descrição e devolver o nome do grupo
+                String detectedCategory = com.financemanager.service.CategoryManager.getInstance().getCategoryFor(t.getDescription());
+                row[3] = detectedCategory; 
+                
+                row[4] = t.getDisplayDescription();
+                
+                model.addRow(row);
+            }
+
+            // Primeiro aplicas o modelo...
+            this.transactionsTable.setModel(model);
+            
+            // ...e SÓ DEPOIS formatas (senão as larguras e alinhamentos perdem-se)
+            formatTable(this.transactionsTable);
+            
+            this.dashboardScrollPane.setViewportView(this.transactionsTable);
+        }
+    }
+
+    private JXTreeTable buildGroupTreeTable() {
+        Map<String, CategoryRow> mapRows = new HashMap<>();
+        CategoryManager catManager = CategoryManager.getInstance();
+
+        // 1. Group Transactions
+        for (Transaction t : getFilteredTransactions()) {
+            String catName = t.getEffectiveCategory(); 
+            mapRows.putIfAbsent(catName, new CategoryRow(catName));
+            CategoryRow row = mapRows.get(catName);
+            row.transactions.add(t);
+            row.total = row.total.add(t.getValue());
+        }
+
+        // 2. Sort
+        List<CategoryRow> sortedList = new ArrayList<>();
+        List<String> order = catManager.getOrderedCategories();
+
+        if (order != null) {
+            for (String name : order) {
+                if (name.equals("Uncategorized") || name.equals("Sem Categoria")) continue;
+                CategoryRow row = mapRows.get(name);
+                if (row != null) {
+                    sortedList.add(row);
+                    mapRows.remove(name);
+                }
+            }
+        }
+
+        List<String> remainingKeys = new ArrayList<>(mapRows.keySet());
+        for (String key : remainingKeys) {
+            if (key.equals("Uncategorized") || key.equals("Sem Categoria")) continue;
+            sortedList.add(mapRows.get(key));
+        }
+
+        if (mapRows.containsKey("Uncategorized")) sortedList.add(mapRows.get("Uncategorized"));
+        if (mapRows.containsKey("Sem Categoria")) sortedList.add(mapRows.get("Sem Categoria"));
+
+        // 3. Create Table
+        FinanceTreeModel model = new FinanceTreeModel(sortedList);
+        JXTreeTable treeTable = new JXTreeTable(model);
+
+        treeTable.setRowHeight(30);
+        treeTable.setFont(new Font("Arial", Font.PLAIN, 14));
+        treeTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 14));
+        treeTable.setShowGrid(true, true);
+        treeTable.setGridColor(Color.LIGHT_GRAY);
+        treeTable.expandAll();
+        treeTable.setAutoCreateRowSorter(true);
+
+        treeTable.getColumnModel().getColumn(3).setCellRenderer(new SmartCellRenderer());
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+        treeTable.getColumnModel().getColumn(2).setCellRenderer(centerRenderer);
+
+        // --- MOUSE LISTENER ---
+        treeTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent e) { showPopup(e); }
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent e) { showPopup(e); }
+
+            private void showPopup(java.awt.event.MouseEvent e) {
+                if (e.isPopupTrigger()) {
+                    int row = treeTable.rowAtPoint(e.getPoint());
+                    if (row >= 0) {
+                        treeTable.setRowSelectionInterval(row, row);
+                        Object node = treeTable.getPathForRow(row).getLastPathComponent();
+                        
+                        if (node instanceof Transaction) {
+                            showTransactionPopup(e.getComponent(), e.getX(), e.getY(), (Transaction) node);
+                        }
+                    }
+                }
+            }
+        });
+
+        return treeTable;
+    }
+
+    /*private void updateDashboardUI() {
+        if (this.manager == null) {
+            return;
+        }
+
+        this.bankNameLabel.setText(this.manager.getName());
+
+        BigDecimal saldo = this.manager.getCurrentBalance();
+
+        balanceLabel.setText(String.format("%.2f €", saldo));
+
+        if (saldo.compareTo(BigDecimal.ZERO)  >= 0) {
+            balanceLabel.setForeground(Color.GREEN.darker());
+        } else {
+            balanceLabel.setForeground(Color.RED);
+        }
+
+        DefaultTableModel model = (DefaultTableModel) transactionsTable.getModel();
+        model.setRowCount(0); 
+
+        for (Transaction t : this.manager.getTransactions()) {
+            String typeStr = t.getValue().compareTo(BigDecimal.ZERO) >= 0 ? "Credit" : "Debit";
+            model.addRow(
+                new Object[] {
+                    t.getDate(), 
+                    t.getDescription(),
+                    typeStr,
+                    t.getValue(),
+                }
+            );
+        }
+    }*/
+
+    private void showTransactionPopup(Component component, int x, int y, Transaction t) {
+        JPopupMenu popupMenu = new JPopupMenu();
+        JMenuItem editItem = new JMenuItem("Edit Description ✏️");
+        JMenuItem categoryItem = new JMenuItem("Set Category 🏷️");
+        popupMenu.add(editItem);
+        popupMenu.add(categoryItem);
+
+        // ACTION 1: EDIT DESCRIPTION
+        editItem.addActionListener(ev -> {
+            String newNote = (String) JOptionPane.showInputDialog(
+                    this, "Edit Description:", "Edit Transaction", 
+                    JOptionPane.PLAIN_MESSAGE, null, null, t.getDisplayDescription()
+            );
+            if (newNote != null) {
+                t.setUserNote(newNote);
+                manager.saveToFile();
+                refreshCurrentView(); 
+            }
+        });
+
+        // ACTION 2: MANUAL CATEGORY OVERRIDE
+        categoryItem.addActionListener(ev -> {
+            List<String> cats = new ArrayList<>(CategoryManager.getInstance().getCategoriesList());
+            String addNewOption = "[ + Add new Category... ]";
+            cats.add(addNewOption);
+            
+            String selectedCat = (String) JOptionPane.showInputDialog(
+                this, "Manually assign category to this specific transaction:", "Set Category Override",
+                JOptionPane.QUESTION_MESSAGE, null, cats.toArray(), t.getEffectiveCategory()
+            );
+
+            if (selectedCat != null) {
+                if (selectedCat.equals(addNewOption)) {
+                    String newCatName = JOptionPane.showInputDialog(this, "Enter name for the new Category:");
+                    if (newCatName != null && !newCatName.trim().isEmpty()) {
+                        CategoryManager.getInstance().addCategory(newCatName.trim());
+                        CategoryManager.getInstance().save();
+                        t.setCategory(newCatName.trim()); 
+                    }
+                } else {
+                    t.setCategory(selectedCat);
+                }
+                manager.saveToFile();
+                refreshCurrentView();
+            }
+        });
+
+        popupMenu.show(component, x, y);
+    }
+
+    private String getFilterLabelText() {
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        if (filterStartDate == null && filterEndDate == null) {
+            return "Today: " + LocalDate.now().format(fmt); 
+        } else {
+            if (filterStartDate.equals(filterEndDate)) {
+                return filterStartDate.format(fmt);
+            } else {
+                return filterStartDate.format(fmt) + " - " + filterEndDate.format(fmt);
+            }
+        }
+    }
+
+    private List<Transaction> getFilteredTransactions() {
+        if (this.manager == null) return new ArrayList<>();
+        
+        if (filterStartDate == null && filterEndDate == null) {
+            return this.manager.getTransactions();
+        }
+
+        List<Transaction> filtered = new ArrayList<>();
+        for (Transaction t : this.manager.getTransactions()) {
+            LocalDate d = t.getDate();
+            
+            boolean isAfterStart = (filterStartDate == null) || (!d.isBefore(filterStartDate));
+            boolean isBeforeEnd = (filterEndDate == null) || (!d.isAfter(filterEndDate));
+
+            if (isAfterStart && isBeforeEnd) {
+                filtered.add(t);
+            }
+        }
+        return filtered;
+    }
+
+    private JPanel createDateFilterComponent() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createLineBorder(Color.GRAY, 1));
+        panel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        panel.setPreferredSize(new Dimension(220, 30));
+
+        // Label com o texto da data
+        this.filterLabel = new JLabel(getFilterLabelText());
+        this.filterLabel.setFont(new Font("Arial", Font.PLAIN, 13));
+        this.filterLabel.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 0));
+        
+        // Seta para parecer um dropdown
+        JButton arrowBtn = new JButton("▼");
+        arrowBtn.setFont(new Font("Arial", Font.PLAIN, 10));
+        arrowBtn.setFocusable(false);
+        arrowBtn.setBorderPainted(false);
+        arrowBtn.setContentAreaFilled(false);
+        
+        // Clicar na seta abre o popup
+        arrowBtn.addActionListener(e -> showDateFilterPopup(panel));
+
+        panel.add(this.filterLabel, BorderLayout.CENTER);
+        panel.add(arrowBtn, BorderLayout.EAST);
+
+        // Clicar no painel branco também abre o popup
+        panel.addMouseListener(new MouseAdapter() {
+            public void mousePressed(MouseEvent e) {
+                showDateFilterPopup(panel);
+            }
+        });
+
+        return panel;
+    }
+
+    private void showDateFilterPopup(Component invoker) {
+        JPopupMenu popup = new JPopupMenu();
+        popup.setLayout(new BorderLayout());
+        popup.setBackground(Color.WHITE);
+
+        JXMonthView monthView = new JXMonthView();
+        monthView.setTraversable(true);
+        monthView.setSelectionMode(DateSelectionModel.SelectionMode.SINGLE_INTERVAL_SELECTION);
+        
+        // Configuração visual do calendário
+        monthView.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+
+        // Carregar seleção existente
+        if (this.filterStartDate != null) {
+            Date start = Date.from(this.filterStartDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+            Date end = (this.filterEndDate != null) 
+                ? Date.from(this.filterEndDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
+                : start;
+            monthView.setSelectionInterval(start, end);
+            monthView.ensureDateVisible(start);
+        } else {
+        monthView.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+
+        // Carregar seleção existente
+        if (this.filterStartDate != null) {
+            Date start = Date.from(this.filterStartDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+            Date end = (this.filterEndDate != null) 
+                ? Date.from(this.filterEndDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
+                : start;
+            monthView.setSelectionInterval(start, end);
+            monthView.ensureDateVisible(start);
+        } else {
+            monthView.ensureDateVisible(new Date());
+        }
+            monthView.ensureDateVisible(new Date());
+        }
+        
+        // 1. Definir a âncora inicial (se já houver filtro, é o inicio do filtro)
+        final Date[] anchorDate = { (this.filterStartDate != null) ? Date.from(this.filterStartDate.atStartOfDay(ZoneId.systemDefault()).toInstant()) : null };
+
+        monthView.addActionListener(e -> {
+            boolean isShiftDown = (e.getModifiers() & java.awt.event.ActionEvent.SHIFT_MASK) != 0;
+            
+            if (isShiftDown && anchorDate[0] != null) {
+                // LÓGICA MANUAL (Só interfere se o SHIFT estiver pressionado)
+                // Isto corrige o bug de selecionar entre meses diferentes
+                Date clickedDate = monthView.getSelectionDate();
+                if (clickedDate != null) {
+                    Date start = clickedDate.before(anchorDate[0]) ? clickedDate : anchorDate[0];
+                    Date end = clickedDate.before(anchorDate[0]) ? anchorDate[0] : clickedDate;
+                    monthView.setSelectionInterval(start, end);
+                }
+            } else {
+                // COMPORTAMENTO PADRÃO (Clique normal ou Arrastar)
+                // Não forçamos nada aqui! Deixamos o JXMonthView gerir o arrasto nativamente.
+                // Apenas atualizamos a âncora para o caso de o utilizador querer usar Shift a seguir.
+                Date first = monthView.getFirstSelectionDate();
+                if (first != null) {
+                    anchorDate[0] = first; 
+                }
+            }
+        });
+
+        // --- PAINEL DE BOTÕES ---
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        btnPanel.setBackground(Color.WHITE);
+
+        JButton btnClear = new JButton("Clear");
+        JButton btnApply = new JButton("Apply");
+        
+        Dimension btnSize = new Dimension(70, 25);
+        btnClear.setPreferredSize(btnSize);
+        btnApply.setPreferredSize(btnSize);
+
+        btnClear.addActionListener(e -> {
+            this.filterStartDate = null;
+            this.filterEndDate = null;
+            updateFilterLabel();
+            refreshCurrentView();
+            popup.setVisible(false);
+        });
+
+        btnApply.addActionListener(e -> {
+            Date start = monthView.getFirstSelectionDate();
+            Date end = monthView.getLastSelectionDate();
+            if (start != null) {
+                this.filterStartDate = start.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                this.filterEndDate = (end != null) ? end.toInstant().atZone(ZoneId.systemDefault()).toLocalDate() : this.filterStartDate;
+            } else {
+                this.filterStartDate = null;
+                this.filterEndDate = null;
+            }
+            updateFilterLabel();
+            refreshCurrentView();
+            popup.setVisible(false);
+        });
+
+        btnPanel.add(btnClear);
+        btnPanel.add(btnApply);
+
+        popup.add(monthView, BorderLayout.CENTER);
+        popup.add(btnPanel, BorderLayout.SOUTH);
+
+        popup.show(invoker, 0, invoker.getHeight());
+    }
+
+    private void updateFilterLabel() {
+        if (this.filterLabel != null) {
+            this.filterLabel.setText(getFilterLabelText());
+            JPanel parent = (JPanel) this.filterLabel.getParent();
+            if (filterStartDate != null) {
+                parent.setBorder(BorderFactory.createLineBorder(new Color(0, 120, 215), 2));
+            } else {
+                parent.setBorder(BorderFactory.createLineBorder(Color.GRAY, 1));
+            }
+        }
+    }
+
+    private void formatTable(JTable table) {
+        table.setRowHeight(35);
+        table.setFont(new Font("Arial", Font.PLAIN, 14));
+        table.getTableHeader().setFont(new Font("Arial", Font.BOLD, 14));
+        
+        // DESLIGA o redimensionamento automático para a tabela não esticar como um elástico
+        table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF); 
+        table.setShowVerticalLines(false); // Visual mais moderno e limpo
+        table.setIntercellSpacing(new Dimension(0, 1));
+
+        SmartCellRenderer smartRenderer = new SmartCellRenderer();
+
+        for (int i = 0; i < table.getColumnCount(); i++) {
+            TableColumn col = table.getColumnModel().getColumn(i);
+            col.setCellRenderer(smartRenderer);
+
+            switch (i) {
+                case 0: // Date
+                    setColumnWidths(col, 100, 100, 110);
+                    break;
+                case 1: // Type
+                    setColumnWidths(col, 80, 80, 80);
+                    break;
+                case 2: // Value
+                    setColumnWidths(col, 110, 110, 120);
+                    break;
+                case 3: // Category
+                    setColumnWidths(col, 150, 160, 200);
+                    break;
+                case 4: // Description
+                    // Damos uma largura generosa mas com um limite máximo (600px)
+                    setColumnWidths(col, 350, 550, 600);
+                    break;
+            }
+        }
+    }
+
+    // Método auxiliar para não repetires código
+    private void setColumnWidths(TableColumn col, int min, int pref, int max) {
+        col.setMinWidth(min);
+        col.setPreferredWidth(pref);
+        col.setMaxWidth(max);
+    }
+
+    public void setManager(AccountManager newManager) {
+        this.manager = newManager;
+        refreshCurrentView();
+    }
+
+    public void setRegistry(Registry newRegistry) {
+        this.registry = newRegistry;
+    }
+
+}

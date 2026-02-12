@@ -11,16 +11,9 @@ import com.financemanager.service.SettingsManager;
 
 import java.awt.*;
 import java.io.*;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
 import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
-import org.jdesktop.swingx.JXTreeTable;
-import org.jdesktop.swingx.treetable.AbstractTreeTableModel;
 
 public class Menu {
 
@@ -32,12 +25,8 @@ public class Menu {
     private boolean isEditMode = false;
 
     private JPanel buttonContainer;
-    private JTable transactionsTable;
-    private JLabel balanceLabel;
-    private JLabel bankNameLabel;
-    private JScrollPane dashboardScrollPane;
 
-    private JComboBox<String> viewModeBox;
+    private DashboardPanel dashBoardPanel;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
@@ -48,6 +37,7 @@ public class Menu {
 
     public Menu() {
         CategoryManager.getInstance().load();
+        SettingsManager.getInstance().load();
 
         this.registry = new Registry();
         frame = new JFrame();
@@ -66,17 +56,18 @@ public class Menu {
     public void addContent() {
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
+        this.dashBoardPanel = new DashboardPanel(this.cardLayout, this.mainPanel);
 
         mainPanel.add(menuPanel(), "Menu");
         mainPanel.add(createPanel(), "Create");
         mainPanel.add(loadPanel(), "Load");
-        mainPanel.add(dashboardPanel(), "Dashboard");
+        mainPanel.add(this.dashBoardPanel, "Dashboard");
 
         frame.add(mainPanel);
         cardLayout.show(mainPanel, "Menu");
     }
 
-    // --- TELA 1: MENU PRINCIPAL ---
+    // --- SCREEN 1: MAIN MENU ---
     private JPanel menuPanel() {
         JPanel rootPanel = new JPanel(new BorderLayout());
 
@@ -94,26 +85,25 @@ public class Menu {
         JPanel painelCentral = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
 
-        // ALTERAÇÃO 1: Mudei de 4 para 5 linhas para caber o novo botão
         JPanel painelBotoes = new JPanel(new GridLayout(5, 1, 0, 20));
 
         JButton btnCreate = new JButton("Create New Manager");
         JButton btnLoad = new JButton("Load Manager");
-        JButton btnImport = new JButton("Import Existing Manager"); // NOVO BOTÃO
+        JButton btnImport = new JButton("Import Existing Manager");
         JButton btnManageCats = new JButton("Manage Categories");
         JButton btnExit = new JButton("Exit");
 
         Font font = new Font("Arial", Font.BOLD, 18);
         btnCreate.setFont(font);
         btnLoad.setFont(font);
-        btnImport.setFont(font); // Aplicar estilo
+        btnImport.setFont(font); 
         btnManageCats.setFont(font);
         btnExit.setFont(font);
 
         Dimension buttonSize = new Dimension(0, 60);
         btnCreate.setPreferredSize(buttonSize);
         btnLoad.setPreferredSize(buttonSize);
-        btnImport.setPreferredSize(buttonSize); // Aplicar tamanho
+        btnImport.setPreferredSize(buttonSize); 
         btnManageCats.setPreferredSize(buttonSize);
         btnExit.setPreferredSize(buttonSize);
 
@@ -124,12 +114,10 @@ public class Menu {
             cardLayout.show(mainPanel, "Load");
         });
 
-        // ALTERAÇÃO 2: Lógica do botão Importar (.manager)
         btnImport.addActionListener(e -> {
             JFileChooser fileChooser = new JFileChooser();
             fileChooser.setDialogTitle("Select an Account File (.manager) to Import");
             
-            // Filtro para garantir que só escolhes ficheiros .manager
             javax.swing.filechooser.FileNameExtensionFilter filter = 
                 new javax.swing.filechooser.FileNameExtensionFilter("Account Manager Files (.manager)", "manager");
             fileChooser.setFileFilter(filter);
@@ -137,11 +125,9 @@ public class Menu {
             if (fileChooser.showOpenDialog(frame) == JFileChooser.APPROVE_OPTION) {
                 File selectedFile = fileChooser.getSelectedFile();
                 try {
-                    // Carregar o ficheiro .manager
                     AccountManager importedManager = AccountManager.loadFromFile(selectedFile.getAbsolutePath());
                     
                     if (importedManager != null) {
-                        // Registar no sistema (Recuperar a memória)
                         String fileName = selectedFile.getName();
                         String managerName = fileName.replace(".manager", ""); 
                         
@@ -149,7 +135,8 @@ public class Menu {
                         
                         JOptionPane.showMessageDialog(frame, "Manager '" + managerName + "' imported successfully!");
                         this.manager = importedManager;
-                        refreshCurrentView(); 
+                        this.dashBoardPanel.setManager(this.manager);
+                        this.dashBoardPanel.refreshCurrentView(); 
                         cardLayout.show(mainPanel, "Dashboard");
                     }
                 } catch (Exception ex) {
@@ -161,13 +148,13 @@ public class Menu {
             }
         });
 
-        btnManageCats.addActionListener(e -> openCategoryManager());
+        btnManageCats.addActionListener(e -> new CategoryDialog(frame).setVisible(true));
 
         btnExit.addActionListener(e -> System.exit(0));
 
         painelBotoes.add(btnCreate);
         painelBotoes.add(btnLoad);
-        painelBotoes.add(btnImport); // Adicionar o botão ao painel
+        painelBotoes.add(btnImport);
         painelBotoes.add(btnManageCats);
         painelBotoes.add(btnExit);
 
@@ -185,35 +172,30 @@ public class Menu {
         gbc.weightx = 0.3;
         painelCentral.add(Box.createGlue(), gbc);
 
-        // Adicionar o painel central ao root
         rootPanel.add(painelCentral, BorderLayout.CENTER);
 
         return rootPanel;
     }
 
-    // --- TELA 2: CREATE MANAGER ---
+    // --- SCREEN 2: CREATE MANAGER ---
     private JPanel createPanel() {
         JPanel painelGeral = new JPanel(new BorderLayout());
 
-        // --- 1. Topo com Settings e Back ---
         JPanel painelTopo = new JPanel(new FlowLayout(FlowLayout.LEFT));
         
-        // Botão Settings
         JButton btnSettings = new JButton("⚙️");
         btnSettings.setToolTipText("Install/Uninstall Bank Readers");
-        btnSettings.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14)); // Fonte para garantir que o emoji aparece bem
+        btnSettings.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
         btnSettings.setFocusable(false);
         btnSettings.addActionListener(e -> openSettings());
         painelTopo.add(btnSettings);
 
-        // Botão Back
         JButton btnBack = new JButton("Back");
         btnBack.setFont(new Font("Arial", Font.BOLD, 14));
         btnBack.addActionListener(e -> cardLayout.show(mainPanel, "Menu"));
         painelTopo.add(btnBack);
         
         painelGeral.add(painelTopo, BorderLayout.NORTH);
-        // -----------------------------------
 
         JPanel painelProporcional = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
@@ -258,7 +240,7 @@ public class Menu {
                 return;
             }
 
-            String lowerPath = path.toLowerCase(); // Converter para minusculas para não falhar com .XLSX
+            String lowerPath = path.toLowerCase(); 
             if (!lowerPath.endsWith(".xlsx") && !lowerPath.endsWith(".csv")) {
                 JOptionPane.showMessageDialog(
                     frame, 
@@ -266,12 +248,11 @@ public class Menu {
                     "Invalid Format",
                     JOptionPane.ERROR_MESSAGE
                 );
-                return; // Pára tudo, não deixa avançar
+                return; 
             }
 
             String selectedBank = showBankSelectionDialog();
 
-            // utilizador cancelou
             if (selectedBank == null) {
                 return;
             }
@@ -306,7 +287,6 @@ public class Menu {
                     List<Transaction> transactions = parser.parse(f);
                     AccountManager newManager = new AccountManager(trimmedName);
 
-                    // Importante: Guardar o tipo de banco escolhido
                     newManager.setBankType(selectedBank);
                     
                     newManager.loadTransactions(transactions);
@@ -315,7 +295,8 @@ public class Menu {
                     if (newManager.getFilePath() != null) {
                         registry.registerManager(trimmedName, newManager.getFilePath());
                         this.manager = newManager;
-                        refreshCurrentView();
+                        this.dashBoardPanel.setManager(this.manager);
+                        this.dashBoardPanel.refreshCurrentView();
                         cardLayout.show(mainPanel, "Dashboard");
                     }
                 }
@@ -360,7 +341,7 @@ public class Menu {
         return painelGeral;
     }
 
-    // --- TELA 3: LOAD MANAGER ---
+    // --- SCREEN 3: LOAD MANAGER ---
     private JPanel loadPanel() {
         JPanel painelGeral = new JPanel(new BorderLayout());
 
@@ -474,9 +455,8 @@ public class Menu {
                     this.manager = AccountManager.loadFromFile(path);
                     if (this.manager != null) {
                         this.manager.setName(name);
-
-                        refreshCurrentView();
-
+                        this.dashBoardPanel.refreshCurrentView();
+                        this.dashBoardPanel.setManager(this.manager);
                         cardLayout.show(mainPanel, "Dashboard");
                     }
                 });
@@ -504,237 +484,6 @@ public class Menu {
 
         this.buttonContainer.revalidate();
         this.buttonContainer.repaint();
-    }
-
-    // --- TELA 4: DASHBOARD ---
-    private JPanel dashboardPanel() {
-        JPanel dashboardPanel = new JPanel(new BorderLayout());
-
-        JPanel topPanel = new JPanel(new BorderLayout());
-        topPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        JButton btnBack = new JButton("Back to Menu");
-        btnBack.setFont(new Font("Arial", Font.BOLD, 14));
-        btnBack.addActionListener(e -> cardLayout.show(mainPanel, "Menu"));
-        topPanel.add(btnBack, BorderLayout.WEST);
-
-        JPanel titlePanel = new JPanel(
-            new FlowLayout(FlowLayout.CENTER, 15, 0)
-        );
-
-        this.bankNameLabel = new JLabel("Bank Name");
-        this.bankNameLabel.setFont(new Font("Arial", Font.BOLD, 22));
-
-        JButton editButton = new JButton("✎");
-        editButton.setFont(new Font("Segoe UI Symbol", Font.PLAIN, 20));
-        editButton.setToolTipText("Edit Name");
-        editButton.setFocusPainted(false);
-        editButton.setBorderPainted(false);
-        editButton.setContentAreaFilled(false);
-        editButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        editButton.addActionListener(e -> {
-            if (this.manager == null) return;
-            String currentName = this.manager.getName();
-            String newName = JOptionPane.showInputDialog(
-                dashboardPanel,
-                "Enter new bank name:",
-                currentName
-            );
-
-            if (newName != null && !newName.trim().isEmpty()) {
-                String finalName = newName.trim();
-                this.manager.setName(finalName);
-                this.bankNameLabel.setText(finalName);
-                this.manager.saveToFile();
-                this.registry.renameManager(currentName, finalName);
-            }
-        });
-
-        this.balanceLabel = new JLabel("0.00 €");
-        this.balanceLabel.setFont(new Font("Arial", Font.BOLD, 22));
-        this.balanceLabel.setForeground(new Color(0, 100, 0));
-
-        titlePanel.add(this.bankNameLabel);
-        titlePanel.add(editButton);
-        titlePanel.add(new JLabel("|"));
-        titlePanel.add(this.balanceLabel);
-
-        topPanel.add(titlePanel, BorderLayout.CENTER);
-
-        JPanel rightActionPanel = new JPanel(
-            new FlowLayout(FlowLayout.RIGHT, 10, 0)
-        );
-
-        String[] modes = { "Default Mode", "Group Mode" };
-        this.viewModeBox = new JComboBox<>(modes);
-        this.viewModeBox.setFont(new Font("Arial", Font.BOLD, 14));
-        this.viewModeBox.setFocusable(false);
-        this.viewModeBox.setBackground(Color.WHITE);
-
-        this.viewModeBox.addActionListener(e -> refreshCurrentView());
-
-        JButton btnAddFile = new JButton("+ Add File");
-        btnAddFile.setFont(new Font("Arial", Font.BOLD, 14));
-        btnAddFile.setBackground(new Color(230, 230, 250));
-        btnAddFile.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        btnAddFile.addActionListener(e -> {
-            if (this.manager.getBankType() == null) {
-                String[] bankOptions = { "Crédito Agrícola", "CGD", "Santander", "Novo Banco" };
-                String selectedBank = (String) JOptionPane.showInputDialog(
-                    frame,
-                    "This Manager has no Bank Type assigned (Old Version).\nPlease select the bank to fix this:",
-                    "Fix Legacy Manager",
-                    JOptionPane.QUESTION_MESSAGE,
-                    null,
-                    bankOptions,
-                    bankOptions[0]
-                );
-
-                if (selectedBank == null) {
-                    return;
-                }
-                this.manager.setBankType(selectedBank);
-                this.manager.saveToFile();
-            }
-            
-            JFileChooser fileChooser = new JFileChooser();
-            int option = fileChooser.showOpenDialog(frame);
-
-            if (option == JFileChooser.APPROVE_OPTION) {
-                File selectedFile = fileChooser.getSelectedFile();
-                
-                BankStatementParser parser = null;
-                String bankType = this.manager.getBankType(); // Agora já não é null!
-
-                switch (bankType) {
-                    case "Crédito Agrícola":
-                        parser = new CreditoAgricolaParser();
-                        break;
-                    case "CGD":
-                        parser = new CGDParser();
-                        break;
-                    default:
-                        parser = new CreditoAgricolaParser();
-                        break;
-                }
-
-                try {
-                    List<Transaction> newTransactions = parser.parse(selectedFile);
-                    this.manager.mergeTransactions(newTransactions);
-                    this.manager.saveToFile();
-                    
-                    refreshCurrentView();
-                    JOptionPane.showMessageDialog(frame, "Success! Transactions added.");
-
-                } catch (Exception ex) {
-                    System.err.println(ex.getMessage());
-                    JOptionPane.showMessageDialog(frame, 
-                        "Error: Failed to read file.\n" +
-                        "Are you sure this is a '" + bankType + "' file?", 
-                        "Invalid File Format", 
-                        JOptionPane.ERROR_MESSAGE);
-                }
-            }
-        });
-
-        JButton btnCats = new JButton("Categories");
-        btnCats.setFont(new Font("Arial", Font.BOLD, 14));
-        btnCats.addActionListener(e -> {
-            openCategoryManager();
-            refreshCurrentView();
-        });
-
-        rightActionPanel.add(viewModeBox);
-        rightActionPanel.add(btnCats);
-        rightActionPanel.add(btnAddFile);
-
-        topPanel.add(rightActionPanel, BorderLayout.EAST);
-
-        dashboardPanel.add(topPanel, BorderLayout.NORTH);
-
-        // --- ALTERAÇÃO: Configuração da Tabela para Suportar Ordenação de Tipos Reais ---
-        String[] columnNames = { "Date", "Description", "Type", "Value" };
-        Object[][] data = {};
-
-        // Model especial que diz à tabela que a coluna 0 é DATA e a 3 é DOUBLE
-        DefaultTableModel model = new DefaultTableModel(data, columnNames) {
-            @Override
-            public Class<?> getColumnClass(int columnIndex) {
-                switch (columnIndex) {
-                    case 0:
-                        return LocalDate.class; // Para ordenar datas corretamente
-                    case 3:
-                        return Double.class; // Para ordenar números corretamente
-                    default:
-                        return String.class;
-                }
-            }
-
-            @Override
-            public boolean isCellEditable(int row, int col) {
-                return false;
-            }
-        };
-
-        this.transactionsTable = new JTable(model);
-        this.transactionsTable.setRowHeight(30);
-        this.transactionsTable.setFont(new Font("Arial", Font.PLAIN, 14));
-        this.transactionsTable.getTableHeader().setFont(
-            new Font("Arial", Font.BOLD, 14)
-        );
-        this.transactionsTable.setShowGrid(true);
-        this.transactionsTable.setGridColor(Color.LIGHT_GRAY);
-
-        // Ativar ordenação
-        this.transactionsTable.setAutoCreateRowSorter(true);
-
-        // Aplicar o Renderizador Inteligente (Pinta verde/vermelho e formata data)
-        this.transactionsTable.getColumnModel().getColumn(0).setCellRenderer(new SmartCellRenderer());
-        this.transactionsTable.getColumnModel().getColumn(3).setCellRenderer(new SmartCellRenderer());
-
-        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
-        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
-        this.transactionsTable.getColumnModel().getColumn(2).setCellRenderer(centerRenderer);
-        
-        this.dashboardScrollPane = new JScrollPane(this.transactionsTable);
-        dashboardPanel.add(this.dashboardScrollPane, BorderLayout.CENTER);
-
-        return dashboardPanel;
-    }
-
-    private void updateDashboardUI() {
-        if (this.manager == null) {
-            return;
-        }
-
-        this.bankNameLabel.setText(this.manager.getName());
-
-        BigDecimal saldo = this.manager.getCurrentBalance();
-
-        balanceLabel.setText(String.format("%.2f €", saldo));
-
-        if (saldo.compareTo(BigDecimal.ZERO)  >= 0) {
-            balanceLabel.setForeground(Color.GREEN.darker());
-        } else {
-            balanceLabel.setForeground(Color.RED);
-        }
-
-        DefaultTableModel model = (DefaultTableModel) transactionsTable.getModel();
-        model.setRowCount(0); 
-
-        for (Transaction t : this.manager.getTransactions()) {
-            String typeStr = t.getValue().compareTo(BigDecimal.ZERO) >= 0 ? "Credit" : "Debit";
-            model.addRow(
-                new Object[] {
-                    t.getDate(), // Passa LocalDate (não String)
-                    t.getDescription(),
-                    typeStr,
-                    t.getValue(), // Passa Double (não String)
-                }
-            );
-        }
     }
 
     private void deleteManager(String name, String path) {
@@ -785,282 +534,6 @@ public class Menu {
         }
     }
 
-    private void openCategoryManager() {
-        JDialog dialog = new JDialog(frame, "Manage Categories", true);
-        dialog.setSize(750, 500);
-        dialog.setResizable(false);
-        dialog.setLayout(new GridLayout(1, 2, 10, 0));
-        dialog.setLocationRelativeTo(frame);
-
-        CategoryManager catManager = CategoryManager.getInstance();
-        catManager.syncOrder(); 
-
-        DefaultListModel<String> categoryModel = new DefaultListModel<>();
-        DefaultListModel<String> keywordModel = new DefaultListModel<>();
-
-        for (String cat : catManager.getOrderedCategories()) {
-            categoryModel.addElement(cat);
-        }
-
-        JList<String> categoryList = new JList<>(categoryModel);
-        JList<String> keywordList = new JList<>(keywordModel);
-
-        JPanel leftPanel = new JPanel(new BorderLayout());
-        leftPanel.setBorder(BorderFactory.createTitledBorder("Groups"));
-
-        JPanel leftButtons = new JPanel(new FlowLayout());
-        JButton btnAddCat = new JButton("Add");
-        JButton btnEditCat = new JButton("Edit");
-        JButton btnRemCat = new JButton("Remove");
-        JButton btnUp = new JButton("⬆");
-        JButton btnDown = new JButton("⬇");
-
-        leftButtons.add(btnAddCat);
-        leftButtons.add(btnEditCat);
-        leftButtons.add(btnRemCat);
-        leftButtons.add(btnUp);
-        leftButtons.add(btnDown);
-
-        leftPanel.add(new JScrollPane(categoryList), BorderLayout.CENTER);
-        leftPanel.add(leftButtons, BorderLayout.SOUTH);
-
-        JPanel rightPanel = new JPanel(new BorderLayout());
-        rightPanel.setBorder(BorderFactory.createTitledBorder("Keywords"));
-
-        JPanel rightButtons = new JPanel(new FlowLayout());
-        JButton btnAddKey = new JButton("Add");
-        JButton btnEditKey = new JButton("Edit");
-        JButton btnRemKey = new JButton("Remove");
-        JButton btnInfo = new JButton("ℹ");
-
-        rightButtons.add(btnAddKey);
-        rightButtons.add(btnEditKey);
-        rightButtons.add(btnRemKey);
-        rightButtons.add(btnInfo);
-
-        rightPanel.add(new JScrollPane(keywordList), BorderLayout.CENTER);
-        rightPanel.add(rightButtons, BorderLayout.SOUTH);
-
-        categoryList.addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) {
-                String selectedCat = categoryList.getSelectedValue();
-                keywordModel.clear();
-
-                if (selectedCat != null) {
-                    ArrayList<String> keys = catManager.getCategoriesMap().get(selectedCat);
-                    if (keys != null) {
-                        for (String k : keys) {
-                            keywordModel.addElement(k);
-                        }
-                    }
-                }
-            }
-        });
-
-        btnAddCat.addActionListener(e -> {
-            String name = JOptionPane.showInputDialog(dialog, "New Group Name:");
-            if (name != null && !name.trim().isEmpty()) {
-                String finalName = name.trim();
-                if (!catManager.getCategoriesMap().containsKey(finalName)) {
-                    catManager.addCategory(finalName);
-                    categoryModel.addElement(finalName);
-                    catManager.save();
-                } else {
-                    JOptionPane.showMessageDialog(dialog, "Group already exists!");
-                }
-            }
-        });
-
-        btnRemCat.addActionListener(e -> {
-            String selected = categoryList.getSelectedValue();
-            if (selected != null) {
-                int confirm = JOptionPane.showConfirmDialog(dialog, "Delete group '" + selected + "'?", "Confirm", JOptionPane.YES_NO_OPTION);
-                if (confirm == JOptionPane.YES_OPTION) {
-                    catManager.getCategoriesMap().remove(selected);
-                    categoryModel.removeElement(selected);
-                    keywordModel.clear();
-                    catManager.save();
-                }
-            }
-        });
-
-        btnUp.addActionListener(e -> {
-            int index = categoryList.getSelectedIndex();
-            String selected = categoryList.getSelectedValue();
-            
-            if (index > 0 && selected != null) {
-                catManager.moveCategoryUp(selected);
-                
-                String temp = categoryModel.get(index - 1);
-                categoryModel.set(index - 1, selected);
-                categoryModel.set(index, temp);
-                
-                categoryList.setSelectedIndex(index - 1);
-                catManager.save();
-            }
-        });
-
-        btnDown.addActionListener(e -> {
-            int index = categoryList.getSelectedIndex();
-            String selected = categoryList.getSelectedValue();
-            
-            if (index >= 0 && index < categoryModel.getSize() - 1 && selected != null) {
-                catManager.moveCategoryDown(selected);
-
-                String temp = categoryModel.get(index + 1);
-                categoryModel.set(index + 1, selected);
-                categoryModel.set(index, temp);
-                
-                categoryList.setSelectedIndex(index + 1);
-                catManager.save();
-            }
-        });
-
-        btnAddKey.addActionListener(e -> {
-            String selectedCat = categoryList.getSelectedValue();
-            if (selectedCat == null) {
-                JOptionPane.showMessageDialog(dialog, "Select a Group on the left first!");
-                return;
-            }
-
-            String key = JOptionPane.showInputDialog(dialog, "Add keyword for " + selectedCat + ":");
-            if (key != null && !key.trim().isEmpty()) {
-                catManager.addKeyword(selectedCat, key.trim());
-                keywordModel.clear();
-                for (String k : catManager.getCategoriesMap().get(selectedCat)) {
-                    keywordModel.addElement(k);
-                }
-                catManager.save();
-            }
-        });
-
-        btnRemKey.addActionListener(e -> {
-            String selectedCat = categoryList.getSelectedValue();
-            String selectedKey = keywordList.getSelectedValue();
-
-            if (selectedCat != null && selectedKey != null) {
-                catManager.getCategoriesMap().get(selectedCat).remove(selectedKey);
-                keywordModel.removeElement(selectedKey); 
-                catManager.save();
-            }
-        });
-
-        btnEditCat.addActionListener(e -> {
-            String selected = categoryList.getSelectedValue();
-            if (selected != null) {
-                String newName = JOptionPane.showInputDialog(dialog, "Rename '" + selected + "' to:", selected);
-                if (newName != null && !newName.trim().isEmpty()) {
-                    String finalName = newName.trim();
-                    ArrayList<String> keys = catManager.getCategoriesMap().get(selected);
-                    catManager.getCategoriesMap().remove(selected);
-                    catManager.getCategoriesMap().put(finalName, keys);
-                    
-                    int index = categoryList.getSelectedIndex();
-                    categoryModel.set(index, finalName);
-                    catManager.save();
-                }
-            }
-        });
-
-        btnEditKey.addActionListener(e -> {
-            String selectedCat = categoryList.getSelectedValue();
-            String selectedKey = keywordList.getSelectedValue();
-
-            if (selectedCat != null && selectedKey != null) {
-                String newKey = JOptionPane.showInputDialog(dialog, "Rename keyword:", selectedKey);
-                if (newKey != null && !newKey.trim().isEmpty()) {
-                    ArrayList<String> keys = catManager.getCategoriesMap().get(selectedCat);
-                    int index = keys.indexOf(selectedKey);
-                    if (index >= 0) {
-                        keys.set(index, newKey.trim());
-                        keywordModel.set(keywordList.getSelectedIndex(), newKey.trim());
-                        catManager.save();
-                    }
-                }
-            }
-        });
-
-        btnInfo.addActionListener(e -> {
-             JOptionPane.showMessageDialog(dialog, "Select a category and add keywords found in bank descriptions.", "Help", JOptionPane.INFORMATION_MESSAGE);
-        });
-
-        dialog.add(leftPanel);
-        dialog.add(rightPanel);
-        dialog.setVisible(true);
-    }
-
-    private JXTreeTable buildGroupTreeTable() {
-        Map<String, CategoryRow> mapRows = new HashMap<>();
-        CategoryManager catManager = CategoryManager.getInstance();
-
-        for (Transaction t : this.manager.getTransactions()) {
-            String catName = catManager.getCategoryFor(t.getDescription());
-            mapRows.putIfAbsent(catName, new CategoryRow(catName));
-            CategoryRow row = mapRows.get(catName);
-            row.transactions.add(t);
-            row.total = row.total.add(t.getValue());
-        }
-
-        List<CategoryRow> sortedList = new ArrayList<>();
-        List<String> order = catManager.getOrderedCategories();
-
-        if (order != null) {
-            for (String name : order) {
-                if (name.equals("Uncategorized") || name.equals("Sem Categoria")) continue;
-                CategoryRow row = mapRows.get(name);
-                if (row != null) {
-                    sortedList.add(row);
-                    mapRows.remove(name);
-                }
-            }
-        }
-
-        List<String> remainingKeys = new ArrayList<>(mapRows.keySet());
-        for (String key : remainingKeys) {
-            if (key.equals("Uncategorized") || key.equals("Sem Categoria")) continue;
-            sortedList.add(mapRows.get(key));
-        }
-
-        if (mapRows.containsKey("Uncategorized")) sortedList.add(mapRows.get("Uncategorized"));
-        if (mapRows.containsKey("Sem Categoria")) sortedList.add(mapRows.get("Sem Categoria"));
-
-        FinanceTreeModel model = new FinanceTreeModel(sortedList);
-        JXTreeTable treeTable = new JXTreeTable(model);
-
-        treeTable.setRowHeight(30);
-        treeTable.setFont(new Font("Arial", Font.PLAIN, 14));
-        treeTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 14));
-        treeTable.setShowGrid(true, true);
-        treeTable.setGridColor(Color.LIGHT_GRAY);
-        treeTable.expandAll();
-        treeTable.setAutoCreateRowSorter(true);
-
-        treeTable.getColumnModel().getColumn(3).setCellRenderer(new SmartCellRenderer());
-
-        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
-        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
-        treeTable.getColumnModel().getColumn(2).setCellRenderer(centerRenderer);
-
-        return treeTable;
-    }
-
-    private void refreshCurrentView() {
-        if (this.manager == null || this.viewModeBox == null) {
-            return;
-        }
-        updateDashboardUI();
-
-        String selected = (String) this.viewModeBox.getSelectedItem();
-
-        if ("Group Mode".equals(selected)) {
-            JXTreeTable groupTable = buildGroupTreeTable();
-            this.dashboardScrollPane.setViewportView(groupTable);
-        } else {
-            this.dashboardScrollPane.setViewportView(this.transactionsTable);
-        }
-    }
-
-    // --- NOVO MÉTODO: Janela de Definições (Sem reinício) ---
     private void openSettings() {
         JDialog dialog = new JDialog(frame, "Settings - Manage Parsers", true);
         dialog.setSize(400, 350);
@@ -1073,14 +546,11 @@ public class Menu {
 
         SettingsManager settings = SettingsManager.getInstance();
         
-        // Botão Save (Começa desativado)
         JButton btnSave = new JButton("Save");
         btnSave.setEnabled(false);
 
-        // Lista para guardar as referências das checkboxes
         java.util.List<JCheckBox> checkBoxes = new java.util.ArrayList<>();
 
-        // LISTENER INTELIGENTE: Verifica se o estado visual difere do estado gravado
         java.awt.event.ActionListener changeChecker = e -> {
             boolean hasChanges = false;
             for (JCheckBox cb : checkBoxes) {
@@ -1088,7 +558,6 @@ public class Menu {
                 boolean isSelected = cb.isSelected();
                 boolean isInstalled = settings.isInstalled(bankName);
 
-                // Se o que está na checkbox for diferente do que está na memória => Mudou
                 if (isSelected != isInstalled) {
                     hasChanges = true;
                     break; 
@@ -1100,19 +569,16 @@ public class Menu {
         for (String bank : SettingsManager.SUPPORTED_BANKS) {
             JCheckBox cb = new JCheckBox(bank);
             
-            // Estado inicial visual (lê da memória)
             if (settings.isInstalled(bank)) {
                 cb.setSelected(true);
                 cb.setForeground(Color.GRAY);
             }
             
-            // 1. Muda a cor (visual apenas)
             cb.addActionListener(ev -> {
                 if (cb.isSelected()) cb.setForeground(Color.GRAY);
                 else cb.setForeground(Color.BLACK);
             });
 
-            // 2. Verifica se ativa o botão Save
             cb.addActionListener(changeChecker);
 
             checkBoxes.add(cb);
@@ -1125,7 +591,6 @@ public class Menu {
         btnCancel.addActionListener(e -> dialog.dispose());
 
         btnSave.addActionListener(e -> {
-            // Aplicar alterações
             for (JCheckBox cb : checkBoxes) {
                 String bankName = cb.getText();
                 if (cb.isSelected()) {
@@ -1134,7 +599,7 @@ public class Menu {
                     settings.uninstall(bankName);
                 }
             }
-            settings.save(); // Grava no settings.dat
+            settings.save(); 
             JOptionPane.showMessageDialog(dialog, "Settings saved. Readers updated.");
             dialog.dispose();
         });
@@ -1150,17 +615,14 @@ public class Menu {
     private String showBankSelectionDialog() {
         JPanel panel = new JPanel(new BorderLayout(5, 5));
 
-        // 1. Barra de Topo para a Rodinha (Canto Superior Esquerdo)
         JPanel topBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         
         JButton btnSettings = new JButton("⚙️");
         btnSettings.setToolTipText("Install/Uninstall Bank Readers");
         btnSettings.setFocusable(false);
         
-        // Dropdown (declarada aqui para ser atualizada pelo botão)
         JComboBox<String> comboBanks = new JComboBox<>();
 
-        // Lógica de atualizar a lista
         Runnable refreshCombo = () -> {
             comboBanks.removeAllItems();
             String[] installed = SettingsManager.getInstance().getInstalledBanks();
@@ -1175,16 +637,13 @@ public class Menu {
 
         topBar.add(btnSettings);
 
-        // 2. O conteúdo do meio (Texto + Dropdown)
         JPanel centerContent = new JPanel(new GridLayout(2, 1, 0, 5));
         centerContent.add(new JLabel("Select the Bank for this new Manager:"));
         centerContent.add(comboBanks);
 
-        // 3. Montagem
         panel.add(topBar, BorderLayout.NORTH);
         panel.add(centerContent, BorderLayout.CENTER);
 
-        // Mostrar o Dialog
         int result = JOptionPane.showConfirmDialog(frame, panel, "Create New Manager", 
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
@@ -1192,192 +651,5 @@ public class Menu {
             return (String) comboBanks.getSelectedItem();
         }
         return null;
-    }
-
-    static class CategoryRow {
-
-        String name;
-        BigDecimal total = BigDecimal.ZERO;
-        List<Transaction> transactions = new ArrayList<>();
-
-        public CategoryRow(String name) {
-            this.name = name;
-        }
-    }
-
-    static class FinanceTreeModel extends AbstractTreeTableModel {
-
-        private final List<CategoryRow> categories;
-
-        private final String[] columnNames = {
-            "Date / Category",
-            "Description",
-            "Type",
-            "Value",
-        };
-
-        public FinanceTreeModel(List<CategoryRow> categories) {
-            super(new Object()); // Raiz invisível
-            this.categories = categories;
-        }
-
-        @Override
-        public int getColumnCount() {
-            return columnNames.length;
-        }
-
-        @Override
-        public Class<?> getColumnClass(int column) {
-            if (column == 3) return Double.class;
-            return String.class;
-        }
-
-        @Override
-        public String getColumnName(int column) {
-            return columnNames[column];
-        }
-
-        @Override
-        public Object getChild(Object parent, int index) {
-            if (parent == root) {
-                return categories.get(index);
-            }
-            if (parent instanceof CategoryRow) {
-                return ((CategoryRow) parent).transactions.get(index);
-            }
-            return null;
-        }
-
-        @Override
-        public int getChildCount(Object parent) {
-            if (parent == root) {
-                return categories.size();
-            }
-            if (parent instanceof CategoryRow) {
-                return ((CategoryRow) parent).transactions.size();
-            }
-            return 0;
-        }
-
-        @Override
-        public boolean isLeaf(Object node) {
-            return node instanceof Transaction;
-        }
-
-        @Override
-        public int getIndexOfChild(Object parent, Object child) {
-            if (parent == root && child instanceof CategoryRow) {
-                return categories.indexOf(child);
-            }
-            if (parent instanceof CategoryRow && child instanceof Transaction) {
-                return ((CategoryRow) parent).transactions.indexOf(child);
-            }
-            return -1;
-        }
-
-        @Override
-        public Object getValueAt(Object node, int column) {
-            DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-
-            if (node instanceof CategoryRow) {
-                CategoryRow cat = (CategoryRow) node;
-                switch (column) {
-                    case 0:
-                        return cat.name;
-                    case 3:
-                        return cat.total;
-                    default:
-                        return "";
-                }
-            }
-
-            if (node instanceof Transaction) {
-                Transaction t = (Transaction) node;
-                String typeStr = t.getValue().compareTo(BigDecimal.ZERO) >= 0 ? "Credit" : "Debit";
-
-                switch (column) {
-                    case 0:
-                        return t.getDate().format(dtf);
-                    case 1:
-                        return t.getDescription();
-                    case 2:
-                        return typeStr;
-                    case 3:
-                        return t.getValue();
-                    default:
-                        return "";
-                }
-            }
-            return "";
-        }
-    }
-
-    static class SmartCellRenderer extends DefaultTableCellRenderer {
-
-        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-
-        @Override
-        public Component getTableCellRendererComponent(
-            JTable table,
-            Object value,
-            boolean isSelected,
-            boolean hasFocus,
-            int row,
-            int column
-        ) {
-            // 1. Reset básico
-            super.getTableCellRendererComponent(
-                table,
-                value,
-                isSelected,
-                hasFocus,
-                row,
-                column
-            );
-            setHorizontalAlignment(JLabel.CENTER);
-
-            // 2. Se for NÚMERO (Double)
-            if (value instanceof Double) {
-                double val = (Double) value;
-                setText(String.format("%.2f €", val));
-                updateColor(val, isSelected, table);
-            }
-            // 3. Se for DATA (LocalDate)
-            else if (value instanceof LocalDate) {
-                setText(((LocalDate) value).format(dtf));
-                if (!isSelected) setForeground(Color.BLACK);
-            }
-            // 4. Se for TEXTO (String) - Rede de Segurança
-            else if (value instanceof String) {
-                String text = (String) value;
-                // Tenta limpar o texto "€" e espaços para ver se é número
-                try {
-                    String clean = text
-                        .replace("€", "")
-                        .replace(",", ".")
-                        .trim();
-                    double val = Double.parseDouble(clean);
-                    updateColor(val, isSelected, table);
-                } catch (NumberFormatException e) {
-                    // Não é número, fica a preto
-                    if (!isSelected) setForeground(Color.BLACK);
-                }
-            } else {
-                if (!isSelected) setForeground(Color.BLACK);
-            }
-
-            return this;
-        }
-
-        // Método auxiliar para pintar Verde/Vermelho
-        private void updateColor(double val, boolean isSelected, JTable table) {
-            if (isSelected) {
-                setForeground(table.getSelectionForeground());
-            } else {
-                if (val >= 0) setForeground(new Color(0, 150, 0));
-                // Verde
-                else setForeground(Color.RED); // Vermelho
-            }
-        }
     }
 }

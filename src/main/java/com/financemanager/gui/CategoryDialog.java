@@ -8,8 +8,6 @@ import java.util.ArrayList;
 
 import javax.swing.*;
 
-import java.awt.Dialog.ModalityType;
-
 import com.financemanager.service.CategoryManager;
 
 public class CategoryDialog extends JDialog {

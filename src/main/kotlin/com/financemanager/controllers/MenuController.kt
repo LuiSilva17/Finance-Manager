@@ -9,7 +9,9 @@ import javafx.stage.Stage
 import javafx.event.ActionEvent
 import javafx.scene.control.Button
 import javafx.application.Platform
+import javafx.stage.FileChooser
 import javafx.stage.Modality
+import java.io.File
 
 import java.io.IOException
 import kotlin.system.exitProcess
@@ -66,21 +68,21 @@ class MenuController {
 
     @FXML
     fun handleImportManager(event: ActionEvent) {
-        try {
-            val loader = FXMLLoader(javaClass.getResource("/LoadManager.fxml"))
-            val settingsRoot = loader.load<Parent>()
+        val fileChooser = FileChooser()
+        fileChooser.title = "Import Existing Manager"
 
-            val loadManagerScene = Scene(settingsRoot)
+        fileChooser.extensionFilters.addAll(
+            FileChooser.ExtensionFilter("Manager Files (*.manager)", "*.manager"),
+            FileChooser.ExtensionFilter("All Files", "*.*")
+        )
+        val currentStage = (event.source as Node).scene.window as Stage
 
-            val currentStage = (event.source as Node).scene.window as Stage
+        val selectedFile: File? = fileChooser.showOpenDialog(currentStage)
 
-            currentStage.apply {
-                scene = loadManagerScene
-                title = "Load Manager"
-                show()
-            }
-        } catch (e: IOException) {
-            println("Error loading FXML: ${e.message}")
+        if (selectedFile != null) {
+            println("Selected File: ${selectedFile.absolutePath}")
+        } else {
+            println("Selection Cancelled")
         }
     }
 
@@ -103,6 +105,21 @@ class MenuController {
             initOwner((event.source as Node).scene.window)
         }
         settingsStage.showAndWait()
+    }
+
+    @FXML
+    fun handleCategories(event: ActionEvent) {
+        val loader = FXMLLoader(javaClass.getResource("/CategoriesView.fxml"))
+        val root = loader.load<Parent>()
+
+        val categoriesStage = Stage().apply {
+            title = "Categories"
+            scene = Scene(root)
+
+            initModality(Modality.APPLICATION_MODAL)
+            initOwner((event.source as Node).scene.window)
+        }
+        categoriesStage.showAndWait()
     }
 
 }

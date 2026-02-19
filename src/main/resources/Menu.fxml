@@ -24,7 +24,7 @@
                   <Font size="14.0" />
                </font>
             </Button>
-            <Button fx:id="manage_categories_button" maxWidth="500.0" minWidth="300.0" mnemonicParsing="false" prefWidth="300.0" text="Manage Categories" textAlignment="CENTER">
+            <Button fx:id="manage_categories_button" maxWidth="500.0" minWidth="300.0" mnemonicParsing="false" onAction="#handleCategories" prefWidth="300.0" text="Manage Categories" textAlignment="CENTER">
                <font>
                   <Font size="14.0" />
                </font>

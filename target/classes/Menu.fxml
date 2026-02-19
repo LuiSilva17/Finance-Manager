@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
+
+<StackPane xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.financemanager.controllers.MenuController">
+   <children>
+      <VBox alignment="CENTER" prefHeight="500.0" prefWidth="400.0" spacing="40.0" StackPane.alignment="CENTER">
+         <children>
+            <Button fx:id="create_new_manager_button" maxWidth="300.0" minWidth="300.0" mnemonicParsing="false" onAction="#handleCreateManager" prefWidth="300.0" text="Create New Manager" textAlignment="CENTER">
+               <font>
+                  <Font size="14.0" />
+               </font>
+            </Button>
+            <Button fx:id="load_manager_button" maxWidth="500.0" minWidth="300.0" mnemonicParsing="false" onAction="#handleLoadManager" prefWidth="300.0" text="Load Existing Manager" textAlignment="CENTER">
+               <font>
+                  <Font size="14.0" />
+               </font>
+            </Button>
+            <Button fx:id="import_manager_button" maxWidth="500.0" minWidth="300.0" mnemonicParsing="false" onAction="#handleImportManager" prefWidth="300.0" text="Import Existing Manager" textAlignment="CENTER">
+               <font>
+                  <Font size="14.0" />
+               </font>
+            </Button>
+            <Button fx:id="manage_categories_button" maxWidth="500.0" minWidth="300.0" mnemonicParsing="false" prefWidth="300.0" text="Manage Categories" textAlignment="CENTER">
+               <font>
+                  <Font size="14.0" />
+               </font>
+            </Button>
+            <Button fx:id="exit_button" alignment="CENTER" minWidth="200.0" mnemonicParsing="false" onAction="#handleExit" prefWidth="200.0" text="Exit" textAlignment="CENTER">
+               <font>
+                  <Font size="14.0" />
+               </font>
+            </Button>
+         </children>
+         <padding>
+            <Insets bottom="50.0" left="50.0" right="50.0" top="50.0" />
+         </padding>
+      </VBox>
+      <Button fx:id="settings_button" alignment="TOP_LEFT" mnemonicParsing="false" onAction="#handleSettings" text="Settings" textAlignment="CENTER" StackPane.alignment="TOP_LEFT">
+         <font>
+            <Font size="12.0" />
+         </font>
+         <StackPane.margin>
+            <Insets left="10.0" top="10.0" />
+         </StackPane.margin>
+      </Button>
+   </children>
+</StackPane>

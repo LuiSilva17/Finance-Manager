@@ -9,6 +9,8 @@ import com.financemanager.service.AccountManager;
 import com.financemanager.service.CategoryManager;
 import com.financemanager.service.SettingsManager;
 
+import com.formdev.flatlaf.intellijthemes.FlatOneDarkIJTheme;
+
 import java.awt.*;
 import java.io.*;
 import java.util.*;
@@ -30,6 +32,11 @@ public class Menu {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
+            try {
+                FlatOneDarkIJTheme.setup();
+            } catch (Exception ex) {
+                System.err.println("Falha ao inicializar o FlatLaf");
+            }
             Menu menu = new Menu();
             menu.start();
         });

@@ -2,7 +2,6 @@ package com.financemanager.gui;
 
 import java.awt.*;
 import java.awt.event.*;
-import java.io.File;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -640,7 +639,7 @@ public class DashboardPanel extends JPanel {
                     break;
                 case 4: // Description
                     // Damos uma largura generosa mas com um limite máximo (600px)
-                    setColumnWidths(col, 350, 550, 600);
+                    setColumnWidths(col, 350, 480, 600);
                     break;
             }
         }

@@ -12,7 +12,7 @@ public class CategoryManager implements Serializable {
     private static CategoryManager instance = null;
 
     private static final String CONFIG_PATH = System.getProperty("user.home") + File.separator + "Finance Manager Data" + File.separator;
-    private static final String FILE_NAME = "categories.config";
+    private static final String FILE_NAME = "categories.dat";
 
     private HashMap<String, ArrayList<String>> categories;
     private List<String> categoryOrder;
@@ -87,6 +87,10 @@ public class CategoryManager implements Serializable {
         return instance = new CategoryManager();
     }
 
+    public void importCategories(File file) {
+
+    }
+
     public static CategoryManager getInstance() {
         if (instance == null) {
             instance = new CategoryManager();
@@ -130,5 +134,15 @@ public class CategoryManager implements Serializable {
 
     public List<String> getOrderedCategories() {
         return categoryOrder;
+    }
+
+    public void removeCategory(String newName) {
+        this.getCategoriesMap().remove(newName);
+    }
+
+    public void renameCategory(String oldName, String newName) {
+        ArrayList<String> keywords = this.getCategoriesMap().get(oldName);
+        this.getCategoriesMap().remove(oldName);
+        this.getCategoriesMap().put(newName, keywords);
     }
 }

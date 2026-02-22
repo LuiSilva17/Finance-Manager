@@ -6,11 +6,19 @@ import com.financemanager.service.AccountManager
 import com.financemanager.service.CategoryManager
 import javafx.beans.property.SimpleStringProperty
 import javafx.collections.FXCollections
+import javafx.event.ActionEvent
 import javafx.fxml.FXML
+import javafx.fxml.FXMLLoader
+import javafx.scene.Node
+import javafx.scene.Parent
+import javafx.scene.Scene
+import javafx.scene.control.Button
 import javafx.scene.control.TableColumn
 import javafx.scene.control.TableView
 import javafx.scene.control.TableCell
 import javafx.scene.control.cell.PropertyValueFactory
+import javafx.stage.Modality
+import javafx.stage.Stage
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -24,6 +32,9 @@ class DashboardController {
     @FXML lateinit var valueColumn: TableColumn<Transaction, Double>
     @FXML lateinit var categoryColumn: TableColumn<Transaction, String>
     @FXML lateinit var descriptionColumn: TableColumn<Transaction, String>
+
+    @FXML var addFileButton: Button = Button()
+    @FXML var categoriesButton: Button = Button()
 
     fun initData(manager: AccountManager) {
         this.manager = manager
@@ -62,6 +73,26 @@ class DashboardController {
     fun initialize() {
         // O initialize corre ANTES do initData.
         // Por isso, aqui ainda não tens acesso ao 'manager'.
+    }
+
+    @FXML
+    fun handleCategories(event: ActionEvent) {
+        val loader = FXMLLoader(javaClass.getResource("/CategoriesView.fxml"))
+        val root = loader.load<Parent>()
+
+        val categoriesStage = Stage().apply {
+            title = "Categories"
+            scene = Scene(root)
+
+            initModality(Modality.APPLICATION_MODAL)
+            initOwner((event.source as Node).scene.window)
+        }
+        categoriesStage.showAndWait()
+    }
+
+    @FXML
+    fun handleAddFile(event: ActionEvent) {
+
     }
 
 }

@@ -26,12 +26,12 @@
             <Region prefHeight="24.0" prefWidth="304.0" HBox.hgrow="ALWAYS" />
             <HBox alignment="CENTER" prefHeight="100.0" prefWidth="200.0" spacing="10.0">
                <children>
-                  <Button mnemonicParsing="false" text="Categories" textAlignment="CENTER">
+                  <Button fx:id="categoriesButton" mnemonicParsing="false" onAction="#handleCategories" text="Categories" textAlignment="CENTER">
                      <font>
                         <Font size="12.0" />
                      </font>
                   </Button>
-                  <Button alignment="CENTER" contentDisplay="CENTER" mnemonicParsing="false" text="+ Add File" textAlignment="CENTER">
+                  <Button fx:id="addFileButton" alignment="CENTER" contentDisplay="CENTER" mnemonicParsing="false" onAction="#handleAddFile" text="+ Add File" textAlignment="CENTER">
                      <font>
                         <Font size="12.0" />
                      </font>

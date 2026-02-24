@@ -9,12 +9,11 @@ import com.financemanager.model.Transaction;
 
 public class AccountManager implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+    @Serial private static final long serialVersionUID = 1L;
 
     private ArrayList<Transaction> transactions;
     private String name;
     private String filePath;
-
     private String bankType;
 
     public AccountManager(String name) {
@@ -54,7 +53,7 @@ public class AccountManager implements Serializable {
 
     public void saveToFile() {
         if (this.filePath == null) {
-            String dataPath = System.getProperty("user.home") + File.separator + "Finance Manager Data";
+            String dataPath = System.getProperty("user.home") + File.separator + "Finance Manager Data" + File.separator + "Managers" + File.separator;
             File directory = new File(dataPath);
 
             if (!directory.exists()) {
@@ -64,11 +63,7 @@ public class AccountManager implements Serializable {
             this.filePath = dataPath + File.separator + this.name + ".manager";
         }
 
-        try (
-            ObjectOutputStream out = new ObjectOutputStream(
-                new FileOutputStream(this.filePath)
-            )
-        ) {
+        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(this.filePath))) {
             out.writeObject(this);
             System.out.println("File saved to: " + this.filePath);
         } catch (IOException e) {
@@ -84,17 +79,15 @@ public class AccountManager implements Serializable {
         this.filePath = path;
     }
 
-    public static AccountManager loadFromFile(String path) {
+    public AccountManager loadFromFile(File file) {
         AccountManager manager = null;
-        try (
-            ObjectInputStream in = new ObjectInputStream(
-                new FileInputStream(path)
-            )
-        ) {
-            manager = (AccountManager) in.readObject();
-            manager.setFilePath(path);
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
+        if (file.exists()) {
+            try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(file))) {
+                manager = (AccountManager) in.readObject();
+                manager.setFilePath(file.getAbsolutePath());
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+            }
         }
         return manager;
     }

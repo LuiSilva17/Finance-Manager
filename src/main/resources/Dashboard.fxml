@@ -9,7 +9,7 @@
    <top>
       <HBox alignment="CENTER" prefHeight="40.0" prefWidth="200.0" spacing="10.0" BorderPane.alignment="CENTER">
          <children>
-            <Button mnemonicParsing="false" text="Back to Menu" textAlignment="CENTER">
+            <Button fx:id="backToMenuButton" mnemonicParsing="false" onAction="#handleBackToMenu" text="Back to Menu" textAlignment="CENTER">
                <font>
                   <Font size="12.0" />
                </font>

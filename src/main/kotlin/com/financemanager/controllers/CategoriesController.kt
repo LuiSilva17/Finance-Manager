@@ -36,7 +36,7 @@ class CategoriesController {
         val file = fileChooser.showOpenDialog(stage)
 
         if (file != null) {
-            CategoryManager.getInstance().importCategories(file)
+            CategoryManager.getInstance().loadFromFile(file)
             refreshCategoryList()
             println("Ficheiro importado com sucesso: ${file.name}")
         }

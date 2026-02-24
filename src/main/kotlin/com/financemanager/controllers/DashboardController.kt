@@ -19,6 +19,7 @@ import javafx.scene.control.TableCell
 import javafx.scene.control.cell.PropertyValueFactory
 import javafx.stage.Modality
 import javafx.stage.Stage
+import java.io.IOException
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -35,6 +36,7 @@ class DashboardController {
 
     @FXML var addFileButton: Button = Button()
     @FXML var categoriesButton: Button = Button()
+    @FXML var backToMenuButton: Button = Button()
 
     fun initData(manager: AccountManager) {
         this.manager = manager
@@ -93,6 +95,18 @@ class DashboardController {
     @FXML
     fun handleAddFile(event: ActionEvent) {
 
+    }
+
+    @FXML
+    fun handleBackToMenu(event: ActionEvent) {
+        val loader = FXMLLoader(javaClass.getResource("/Menu.fxml"))
+        val root = loader.load<Parent>()
+        val stage = (event.source as Node).scene.window as Stage
+        stage.isResizable = false
+        val scene = Scene(root)
+        stage.scene = scene
+        stage.sizeToScene()
+        stage.centerOnScreen()
     }
 
 }

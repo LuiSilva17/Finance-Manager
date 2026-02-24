@@ -9,6 +9,7 @@ import javafx.stage.Stage
 import javafx.event.ActionEvent
 import javafx.scene.control.Button
 import javafx.application.Platform
+import javafx.scene.layout.StackPane
 import javafx.stage.FileChooser
 import javafx.stage.Modality
 import java.io.File
@@ -25,6 +26,18 @@ class MenuController {
     @FXML var exit_button: Button = Button()
     @FXML var import_manager_button: Button = Button()
     @FXML var settings_button: Button = Button()
+    @FXML var rootPane: StackPane = StackPane()
+
+    @FXML
+    fun initialize() {
+        javafx.application.Platform.runLater {
+            val stage = rootPane.scene.window as javafx.stage.Stage
+            stage.isResizable = false
+            stage.sizeToScene()
+            stage.title = "Finance Manager - Main Menu"
+            stage.centerOnScreen()
+        }
+    }
 
     @FXML
     fun handleCreateManager(event: ActionEvent) {
@@ -48,22 +61,14 @@ class MenuController {
 
     @FXML
     fun handleLoadManager(event: ActionEvent) {
-        try {
-            val loader = FXMLLoader(javaClass.getResource("/LoadManager.fxml"))
-            val settingsRoot = loader.load<Parent>()
-
-            val loadManagerScene = Scene(settingsRoot)
-
-            val currentStage = (event.source as Node).scene.window as Stage
-
-            currentStage.apply {
-                scene = loadManagerScene
-                title = "Load Manager"
-                show()
-            }
-        } catch (e: IOException) {
-            println("Error loading FXML: ${e.message}")
-        }
+        val loader = FXMLLoader(javaClass.getResource("/LoadManager.fxml"))
+        val root = loader.load<Parent>()
+        val stage = (event.source as Node).scene.window as Stage
+        stage.scene = Scene(root)
+        stage.isResizable = false
+        stage.sizeToScene()
+        stage.centerOnScreen()
+        stage.title = "Load Manager"
     }
 
     @FXML

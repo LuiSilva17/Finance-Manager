@@ -8,10 +8,10 @@ import java.util.List;
 
 public class CategoryManager implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+    @Serial private static final long serialVersionUID = 1L;
     private static CategoryManager instance = null;
 
-    private static final String CONFIG_PATH = System.getProperty("user.home") + File.separator + "Finance Manager Data" + File.separator;
+    private String filePath;
     private static final String FILE_NAME = "categories.dat";
 
     private HashMap<String, ArrayList<String>> categories;
@@ -35,7 +35,7 @@ public class CategoryManager implements Serializable {
             ArrayList<String> k = this.categories.get(name);
             if (k != null) {
                 if (k.contains(keyword)) {
-                    System.out.println("Category has already that keyword");
+                    System.out.println("Category already has that keyword");
                     return;
                 }
                 k.add(keyword);
@@ -61,13 +61,13 @@ public class CategoryManager implements Serializable {
     }
 
     public void save() {
-        File directory = new File(CONFIG_PATH);
+        File directory = new File(System.getProperty("user.home") + File.separator + "Finance Manager Data" + File.separator + "Configs" + File.separator);
         if (!directory.exists()) {
             directory.mkdirs();
         }
+        filePath = directory.getAbsolutePath();
 
-        try (
-            ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(CONFIG_PATH + FILE_NAME))) {
+        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(filePath + FILE_NAME))) {
             out.writeObject(getInstance());
         } catch (IOException e) {
             e.printStackTrace();
@@ -75,7 +75,7 @@ public class CategoryManager implements Serializable {
     }
 
     public CategoryManager load() {
-        File file = new File(CONFIG_PATH + FILE_NAME);
+        File file = new File(filePath + FILE_NAME);
         if (file.exists()) {
             try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(file))) {
                 instance = (CategoryManager) in.readObject();
@@ -87,8 +87,17 @@ public class CategoryManager implements Serializable {
         return instance = new CategoryManager();
     }
 
-    public void importCategories(File file) {
-
+    public void loadFromFile(File file) {
+        if(file.exists()) {
+            try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(file))) {
+                if (file.exists()) {
+                    instance = (CategoryManager) in.readObject();
+                    filePath = file.getAbsolutePath();
+                }
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public static CategoryManager getInstance() {

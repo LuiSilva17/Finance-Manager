@@ -10,8 +10,9 @@ public class SettingsManager implements Serializable {
 
     private HashSet<String> installedParsers;
     public static final String[] SUPPORTED_BANKS = {"CDG", "CA", "BPI", "MILLENIUM", "NOVO BANCO", "REVOLUT", "SANTANDER"};
-    
-    private static final String CONFIG_PATH = System.getProperty("user.home") + File.separator + "Finance Manager Data" + File.separator;
+
+    private String filePath;
+
     private static final String FILE_NAME = "settings.dat";
 
     private SettingsManager() {
@@ -26,12 +27,13 @@ public class SettingsManager implements Serializable {
     }
 
     public void save() {
-        File directory = new File(CONFIG_PATH);
+        File directory = new File(System.getProperty("user.home") + File.separator + "Finance Manager Data" + File.separator + "Configs");
+        filePath = directory.getAbsolutePath();
         if (!directory.exists()) {
             directory.mkdirs();
         }
 
-        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(CONFIG_PATH + FILE_NAME))) {
+        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(filePath + FILE_NAME))) {
             out.writeObject(getInstance());
         } catch (IOException e) {
             e.printStackTrace();
@@ -39,7 +41,7 @@ public class SettingsManager implements Serializable {
     }
 
     public void load() {
-        File file = new File(CONFIG_PATH + FILE_NAME);
+        File file = new File(System.getProperty("user.home") + File.separator + "Finance Manager Data" + File.separator + "Configs" + File.separator + FILE_NAME);
         if (file.exists()) {
            try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(file))) {
                 instance = (SettingsManager) in.readObject();

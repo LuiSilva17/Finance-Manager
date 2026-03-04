@@ -15,7 +15,8 @@ public class FileLoader {
 
         if (fileName.endsWith(".csv")) {
             // Se for CSV, lê o ficheiro original (ignora o separador pedido, usa o que está lá)
-            return Files.readAllLines(file.toPath());
+            // No método readLines do FileLoader.java
+            return Files.readAllLines(file.toPath(), java.nio.charset.StandardCharsets.ISO_8859_1);
         } 
         else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
             // Se for Excel, passamos o separador para a conversão

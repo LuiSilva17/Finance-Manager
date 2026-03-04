@@ -79,19 +79,16 @@ class DashboardController {
      * Atualiza todos os elementos visuais com os dados atuais do manager.
      */
     private fun refreshUI() {
-        // Atualiza o topo (Nome e Saldo)
         bankNameLabel.text = manager.name
         val balance = manager.currentBalance
         balanceLabel.text = String.format("%.2f €", balance)
 
-        // Estilo visual do saldo
         if (balance.signum() >= 0) {
             balanceLabel.style = "-fx-text-fill: green; -fx-font-weight: bold;"
         } else {
             balanceLabel.style = "-fx-text-fill: red; -fx-font-weight: bold;"
         }
 
-        // Atualiza a tabela
         transactionTable.items = FXCollections.observableArrayList(manager.transactions)
         transactionTable.sortOrder.add(dateColumn)
     }
@@ -109,7 +106,7 @@ class DashboardController {
                 initOwner((event.source as Node).scene.window)
             }
             categoriesStage.showAndWait()
-            refreshUI() // Atualiza caso as categorias tenham mudado
+            refreshUI()
         } catch (e: IOException) {
             e.printStackTrace()
         }

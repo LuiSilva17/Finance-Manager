@@ -67,7 +67,7 @@ public class CategoryManager implements Serializable {
         }
         filePath = directory.getAbsolutePath();
 
-        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(filePath + FILE_NAME))) {
+        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(filePath + File.separator + FILE_NAME))) {
             out.writeObject(getInstance());
         } catch (IOException e) {
             e.printStackTrace();

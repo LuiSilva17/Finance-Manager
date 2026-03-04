@@ -41,10 +41,15 @@
                   </HBox>
                </children>
             </VBox>
-            <VBox fx:id="managerListView" fillWidth="false" prefHeight="200.0" prefWidth="100.0" spacing="10.0" StackPane.alignment="CENTER" />
+            <VBox fx:id="managerListView" alignment="CENTER" fillWidth="false" prefHeight="200.0" prefWidth="100.0" spacing="10.0" StackPane.alignment="CENTER" />
          </children>
       </StackPane>
       <Button fx:id="back_to_menu_button" mnemonicParsing="false" onAction="#handleBacktoMenu" text="Back to Menu" AnchorPane.leftAnchor="10.0" AnchorPane.topAnchor="10.0">
+         <font>
+            <Font size="12.0" />
+         </font>
+      </Button>
+      <Button fx:id="editButton" mnemonicParsing="false" onAction="#handleToggleEdit" text="Edit" AnchorPane.leftAnchor="10.0" AnchorPane.topAnchor="40.0">
          <font>
             <Font size="12.0" />
          </font>

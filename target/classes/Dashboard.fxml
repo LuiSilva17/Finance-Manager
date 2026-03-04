@@ -17,13 +17,17 @@
                   <Insets />
                </HBox.margin>
             </Button>
-            <Region prefHeight="24.0" prefWidth="134.0" HBox.hgrow="ALWAYS" />
-            <HBox prefHeight="100.0" prefWidth="200.0">
+            <Region prefHeight="23.0" prefWidth="0.0" HBox.hgrow="ALWAYS" />
+            <HBox prefHeight="23.0" prefWidth="254.0" spacing="20.0">
                <children>
-                  <TextField />
+                  <Label fx:id="bankNameLabel" />
+                  <Label fx:id="balanceLabel" />
                </children>
+               <padding>
+                  <Insets top="5.0" />
+               </padding>
             </HBox>
-            <Region prefHeight="24.0" prefWidth="304.0" HBox.hgrow="ALWAYS" />
+            <Region prefHeight="23.0" prefWidth="0.0" HBox.hgrow="ALWAYS" />
             <HBox alignment="CENTER" prefHeight="100.0" prefWidth="200.0" spacing="10.0">
                <children>
                   <Button fx:id="categoriesButton" mnemonicParsing="false" onAction="#handleCategories" text="Categories" textAlignment="CENTER">

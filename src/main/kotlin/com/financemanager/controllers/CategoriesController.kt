@@ -38,7 +38,6 @@ class CategoriesController {
         if (file != null) {
             CategoryManager.getInstance().loadFromFile(file)
             refreshCategoryList()
-            println("Ficheiro importado com sucesso: ${file.name}")
         }
     }
 
@@ -50,13 +49,11 @@ class CategoriesController {
 
     @FXML
     fun initialize() {
-        println("DEBUG: CategoriesController initialized!")
         val catManager = CategoryManager.getInstance()
         catManager.syncOrder()
 
         categoryList.items.addAll(catManager.orderedCategories)
 
-        // Sincronização das listas [cite: 2026-01-24]
         categoryList.selectionModel.selectedItemProperty().addListener { _, _, selectedCat ->
             keywordList.items.clear()
             if (selectedCat != null) {
@@ -66,13 +63,9 @@ class CategoriesController {
                 }
             }
         }
-
-        // Configuração dos menus de contexto (Botão Direito) [cite: 2026-01-24]
         setupCategoryContextMenu()
         setupKeywordContextMenu()
     }
-
-    // --- MÉTODOS DE CATEGORIA (ESQUERDA) --- [cite: 2026-01-24]
 
     private fun handleAddCategory() {
         val dialog = TextInputDialog()
@@ -164,8 +157,6 @@ class CategoriesController {
         keywordList.items.remove(keyword)
         CategoryManager.getInstance().save()
     }
-
-    // --- CONFIGURAÇÃO DOS MENUS DE CONTEXTO --- [cite: 2026-01-24]
 
     private fun setupCategoryContextMenu() {
         val contextMenu = ContextMenu()

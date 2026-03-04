@@ -125,9 +125,9 @@ public class Menu {
             if (fileChooser.showOpenDialog(frame) == JFileChooser.APPROVE_OPTION) {
                 File selectedFile = fileChooser.getSelectedFile();
                 try {
-                    AccountManager importedManager = AccountManager.loadFromFile(selectedFile.getAbsolutePath());
+                    //AccountManager importedManager = AccountManager.loadFromFile(selectedFile.getAbsolutePath());
                     
-                    if (importedManager != null) {
+                    /*if (importedManager != null) {
                         String fileName = selectedFile.getName();
                         String managerName = fileName.replace(".manager", ""); 
                         
@@ -138,7 +138,7 @@ public class Menu {
                         this.dashBoardPanel.setManager(this.manager);
                         this.dashBoardPanel.refreshCurrentView(); 
                         cardLayout.show(mainPanel, "Dashboard");
-                    }
+                    }*/
                 } catch (Exception ex) {
                     JOptionPane.showMessageDialog(frame, 
                         "Error importing file.\nMake sure you selected a valid '.manager' file.\n" + ex.getMessage(),
@@ -452,7 +452,7 @@ public class Menu {
                     if (this.isEditMode) return;
 
                     System.out.println("Loading from: " + path);
-                    this.manager = AccountManager.loadFromFile(path);
+                    //this.manager = AccountManager.loadFromFile(path);
                     if (this.manager != null) {
                         this.manager.setName(name);
                         this.dashBoardPanel.refreshCurrentView();
@@ -519,9 +519,9 @@ public class Menu {
         if (newName != null && !newName.trim().isEmpty()) {
             String finalName = newName.trim();
 
-            AccountManager tempManager = AccountManager.loadFromFile(path);
+            //AccountManager tempManager = AccountManager.loadFromFile(path);
 
-            if (tempManager != null) {
+            /*if (tempManager != null) {
                 tempManager.setName(finalName);
                 tempManager.saveToFile();
 
@@ -530,7 +530,7 @@ public class Menu {
                 refreshLoadPage();
             } else {
                 JOptionPane.showMessageDialog(frame, "Error loading file to rename.");
-            }
+            }*/
         }
     }
 

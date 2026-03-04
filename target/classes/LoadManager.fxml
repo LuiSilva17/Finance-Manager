@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
+
+<AnchorPane prefHeight="500.0" prefWidth="400.0" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.financemanager.controllers.LoadManagerController">
+   <children>
+      <StackPane layoutX="0.025390625" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+         <children>
+            <VBox fx:id="emptyStateView" alignment="CENTER" prefHeight="200.0" prefWidth="100.0" spacing="10.0" StackPane.alignment="CENTER">
+               <children>
+                  <Label alignment="CENTER" style="-fx-background-color: transparent;" text="You have no Managers" textAlignment="CENTER">
+                     <font>
+                        <Font size="16.0" />
+                     </font>
+                  </Label>
+                  <HBox alignment="CENTER" prefHeight="100.0" prefWidth="200.0" spacing="5.0">
+                     <children>
+                        <Label style="-fx-background-color: transparent;" text="Try">
+                           <font>
+                              <Font size="16.0" />
+                           </font></Label>
+                        <Button fx:id="createButton" mnemonicParsing="false" onAction="#handleCreate" text="Creating">
+                           <font>
+                              <Font size="16.0" />
+                           </font></Button>
+                        <Label style="-fx-background-color: transparent;" text="or">
+                           <font>
+                              <Font size="16.0" />
+                           </font></Label>
+                        <Button fx:id="importButton" mnemonicParsing="false" onAction="#handleImport" text="Importing">
+                           <font>
+                              <Font size="16.0" />
+                           </font></Button>
+                        <Label style="-fx-background-color: transparent;" text="a new one">
+                           <font>
+                              <Font size="16.0" />
+                           </font></Label>
+                     </children>
+                  </HBox>
+               </children>
+            </VBox>
+            <VBox fx:id="managerListView" alignment="CENTER" fillWidth="false" prefHeight="200.0" prefWidth="100.0" spacing="10.0" StackPane.alignment="CENTER" />
+         </children>
+      </StackPane>
+      <Button fx:id="back_to_menu_button" mnemonicParsing="false" onAction="#handleBacktoMenu" text="Back to Menu" AnchorPane.leftAnchor="10.0" AnchorPane.topAnchor="10.0">
+         <font>
+            <Font size="12.0" />
+         </font>
+      </Button>
+      <Button fx:id="editButton" mnemonicParsing="false" onAction="#handleToggleEdit" text="Edit" AnchorPane.leftAnchor="10.0" AnchorPane.topAnchor="40.0">
+         <font>
+            <Font size="12.0" />
+         </font>
+      </Button>
+   </children>
+</AnchorPane>

@@ -21,7 +21,7 @@
             <Font size="14.0" />
          </font>
       </Button>
-      <Label fx:id="file_name_label" layoutX="50.0" layoutY="218.0" prefHeight="18.0" prefWidth="32.0">
+      <Label fx:id="file_name_label" layoutX="50.0" layoutY="218.0" prefHeight="18.0" prefWidth="260.0">
          <font>
             <Font size="14.0" />
          </font></Label>

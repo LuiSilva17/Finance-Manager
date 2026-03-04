@@ -93,7 +93,7 @@ class CreateManagerController {
         } else {
             val selectedBank = showBankSelectionDialog() ?: return
             val parser = when(selectedBank) {
-                "Crédito Agricola" -> CreditoAgricolaParser();
+                "Crédito Agrícola" -> CreditoAgricolaParser();
                 "CGD" -> CGDParser();
                 else -> CreditoAgricolaParser()
             }

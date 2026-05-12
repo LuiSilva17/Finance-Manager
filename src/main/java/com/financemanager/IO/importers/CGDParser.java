@@ -19,6 +19,8 @@ import com.opencsv.exceptions.CsvValidationException;
 
 public class CGDParser implements BankStatementParser {
 
+    private static final int HEADER_LINES = 8;
+
     @Override
     public String getName() {
         return "Caixa Geral de Depositos";
@@ -33,7 +35,7 @@ public class CGDParser implements BankStatementParser {
             CSVParser csvParser = new CSVParserBuilder().withSeparator(';').build();
             try (CSVReader reader = new CSVReaderBuilder(new StringReader(csvContent)).withCSVParser(csvParser).build();) {
 
-                for (int i = 0; i < 8; i++) {
+                for (int i = 0; i < HEADER_LINES; i++) {
                     reader.readNext();
                 }
 

@@ -13,6 +13,8 @@ import java.util.*;
 
 public class CreditoAgricolaParser implements BankStatementParser {
 
+    private static final int HEADER_LINES = 5;
+
     @Override
     public List<Transaction> parse(File csvFile) {
         List<Transaction> list = new ArrayList<>();
@@ -21,7 +23,7 @@ public class CreditoAgricolaParser implements BankStatementParser {
             String csvContent = String.join("\n", lines);
 
             try (CSVReader reader = new CSVReader(new StringReader(csvContent))) {
-                for (int i = 0; i < 5; i++) {
+                for (int i = 0; i < HEADER_LINES; i++) {
                     reader.readNext();
                 }
 

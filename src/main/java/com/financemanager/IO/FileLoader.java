@@ -4,6 +4,7 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,7 +17,7 @@ public class FileLoader {
         if (fileName.endsWith(".csv")) {
             // Se for CSV, lê o ficheiro original (ignora o separador pedido, usa o que está lá)
             // No método readLines do FileLoader.java
-            return Files.readAllLines(file.toPath(), java.nio.charset.StandardCharsets.ISO_8859_1);
+            return Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
         } 
         else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
             // Se for Excel, passamos o separador para a conversão

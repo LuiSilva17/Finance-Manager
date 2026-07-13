@@ -11,22 +11,14 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <kotlin.version>1.9.22</kotlin.version>
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
-    <javafx.version>21.0.1</javafx.version>
+    <javafx.version>21.0.11</javafx.version>
   </properties>
 
   <dependencies>
 
-    <!-- Kotlin -->
-    <dependency>
-      <groupId>org.jetbrains.kotlin</groupId>
-      <artifactId>kotlin-stdlib</artifactId>
-      <version>${kotlin.version}</version>
-    </dependency>
-
-    <!-- JavaFX — controls já inclui Charts nativos, não precisas de mais nada -->
+    <!-- JavaFX -->
     <dependency>
       <groupId>org.openjfx</groupId>
       <artifactId>javafx-controls</artifactId>
@@ -45,7 +37,7 @@
       <version>5.12.0</version>
     </dependency>
 
-    <!-- Excel (.xlsx) — mantém se precisares de exportar para Excel -->
+    <!-- Excel (.xlsx) -->
     <dependency>
       <groupId>org.apache.poi</groupId>
       <artifactId>poi-ooxml</artifactId>
@@ -64,45 +56,11 @@
 
   <build>
     <plugins>
-
-      <!-- Kotlin compiler -->
-      <plugin>
-        <groupId>org.jetbrains.kotlin</groupId>
-        <artifactId>kotlin-maven-plugin</artifactId>
-        <version>${kotlin.version}</version>
-        <executions>
-          <execution>
-            <id>compile</id>
-            <goals><goal>compile</goal></goals>
-            <configuration>
-              <jvmTarget>21</jvmTarget>
-              <sourceDirs>
-                <sourceDir>${project.basedir}/src/main/kotlin</sourceDir>
-                <sourceDir>${project.basedir}/src/main/java</sourceDir>
-              </sourceDirs>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-      <!-- Java compiler -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.11.0</version>
-        <executions>
-          <execution>
-            <id>default-compile</id>
-            <phase>none</phase>
-          </execution>
-          <execution>
-            <id>java-compile</id>
-            <phase>compile</phase>
-            <goals><goal>compile</goal></goals>
-          </execution>
-        </executions>
       </plugin>
-
     </plugins>
   </build>
 

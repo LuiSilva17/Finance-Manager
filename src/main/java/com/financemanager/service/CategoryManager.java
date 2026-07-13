@@ -60,40 +60,58 @@ public class CategoryManager implements Serializable {
         return "Uncategorized";
     }
 
-    public void save() {
-        File directory = new File(System.getProperty("user.home") + File.separator + "Finance Manager Data" + File.separator + "Configs" + File.separator);
+    private static File resolveConfigDirectory() {
+        File directory = new File(System.getProperty("user.home") + File.separator
+                + "Finance Manager Data" + File.separator + "Configs" + File.separator);
         if (!directory.exists()) {
             directory.mkdirs();
         }
-        filePath = directory.getAbsolutePath();
+        return directory;
+    }
 
-        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(filePath + File.separator + FILE_NAME))) {
-            out.writeObject(getInstance());
+    public void save() {
+        File directory = resolveConfigDirectory();
+        this.filePath = directory.getAbsolutePath();
+
+        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(this.filePath + File.separator + FILE_NAME))) {
+            out.writeObject(this);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public CategoryManager load() {
-        File file = new File(filePath + FILE_NAME);
+    private static CategoryManager loadFromDisk() {
+        File directory = resolveConfigDirectory();
+        File file = new File(directory, FILE_NAME);
+
         if (file.exists()) {
             try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(file))) {
-                instance = (CategoryManager) in.readObject();
+                CategoryManager loaded = (CategoryManager) in.readObject();
+                loaded.filePath = directory.getAbsolutePath();
+                if (loaded.categories == null) {
+                    loaded.categories = new HashMap<>();
+                }
+                if (loaded.categoryOrder == null) {
+                    loaded.categoryOrder = new ArrayList<>();
+                }
+                return loaded;
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
             }
-            return instance;
         }
-        return instance = new CategoryManager();
+        CategoryManager fresh = new CategoryManager();
+        fresh.filePath = directory.getAbsolutePath();
+        return fresh;
     }
 
-    public void loadFromFile(File file) {
-        if(file.exists()) {
+    public void importFromFile(File file) {
+        if (file.exists()) {
             try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(file))) {
-                if (file.exists()) {
-                    instance = (CategoryManager) in.readObject();
-                    filePath = file.getAbsolutePath();
-                }
+                CategoryManager loadedObject = (CategoryManager) in.readObject();
+                this.categories = loadedObject.getCategoriesMap();
+                this.categoryOrder = loadedObject.getOrderedCategories();
+                this.syncOrder();
+                this.save();
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
             }
@@ -102,7 +120,7 @@ public class CategoryManager implements Serializable {
 
     public static CategoryManager getInstance() {
         if (instance == null) {
-            instance = new CategoryManager();
+            instance = loadFromDisk();
         }
         return instance;
     }

@@ -3,10 +3,14 @@ package com.financemanager.IO.importers;
 import com.financemanager.IO.FileLoader;
 import com.financemanager.model.Transaction;
 import com.financemanager.model.TransactionEnum;
+import com.opencsv.CSVParser;
+import com.opencsv.CSVParserBuilder;
 import com.opencsv.CSVReader;
+import com.opencsv.CSVReaderBuilder;
 import com.opencsv.exceptions.CsvValidationException;
 import java.io.*;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -19,10 +23,16 @@ public class CreditoAgricolaParser implements BankStatementParser {
     public List<Transaction> parse(File csvFile) {
         List<Transaction> list = new ArrayList<>();
         try {
-            List<String> lines = FileLoader.readLines(csvFile, ',');
-            String csvContent = String.join("\n", lines);
+            char delimiter = ',';
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(csvFile), StandardCharsets.UTF_8))) {
+                String firstLine = br.readLine();
+                if (firstLine.contains(";")) {
+                    delimiter = ';';
+                }
+            }
 
-            try (CSVReader reader = new CSVReader(new StringReader(csvContent))) {
+            CSVParser csvParser = new CSVParserBuilder().withSeparator(delimiter).build();
+            try (CSVReader reader = new CSVReaderBuilder(new InputStreamReader(new FileInputStream(csvFile), StandardCharsets.UTF_8)).withCSVParser(csvParser).build()) {
                 for (int i = 0; i < HEADER_LINES; i++) {
                     reader.readNext();
                 }

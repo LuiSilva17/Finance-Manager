@@ -27,7 +27,7 @@ public class SettingsManager implements Serializable {
     }
 
     public void save() {
-        File directory = new File(System.getProperty("user.home") + File.separator + "Finance Manager Data" + File.separator + "Configs");
+        File directory = new File(System.getProperty("user.home") + File.separator + "Finance Manager Data" + File.separator + "Configs" + File.separator);
         filePath = directory.getAbsolutePath();
         if (!directory.exists()) {
             directory.mkdirs();

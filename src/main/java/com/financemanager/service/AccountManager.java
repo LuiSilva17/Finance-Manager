@@ -60,7 +60,7 @@ public class AccountManager implements Serializable {
                 directory.mkdirs();
             }
 
-            this.filePath = dataPath + File.separator + this.name + ".manager";
+            this.filePath = dataPath + this.name + ".manager";
         }
 
         try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(this.filePath))) {

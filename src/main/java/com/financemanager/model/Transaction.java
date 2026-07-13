@@ -53,7 +53,7 @@ public class Transaction implements Serializable {
     }
 
     public String getPayersName() {
-        return this.payersName;
+        return this.payersName != null ? this.payersName : "";
     }
 
     public String getBeneficiarysName() {
@@ -69,7 +69,7 @@ public class Transaction implements Serializable {
     }
 
     public String getEffectiveCategory() {
-        if (this.manualCategory != null) {
+        if (this.manualCategory != null && !this.manualCategory.isBlank()) {
             return this.manualCategory;
         }
         return CategoryManager.getInstance().getCategoryFor(this.description);
